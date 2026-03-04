@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User{
+  id String @id @default(uuid())
+  username String @unique
+  email String @unique
+  password_hash String
+  avatar_url String?
+  bio String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  followers Follow[] @relation("UserFollowers")
+  following Follow[] @relation("UserFollowing")
+  posts Post[] @relation("UserPosts") 
+
+}
+
+model Follow {
+  id String @id @default(uuid())
+  follower_id String
+  following_id String
+  created_at DateTime @default(now())
+
+  follower User @relation("UserFollowers", fields: [follower_id], references: [id])
+  following User @relation("UserFollowing", fields: [following_id], references: [id])
+  
+  @@unique([follower_id, following_id])
+}
+
+model Post {
+  id String @id @default(uuid())
+  author_id String
+  content String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  author User @relation("UserPosts", fields: [author_id], references: [id])
+  media PostMedia[] @relation("PostMedia")
+}
+
+model PostMedia {
+  id String @id @default(uuid())
+  post_id String
+  media_url String
+  media_type String
+  public_id String
+  created_at DateTime @default(now())
+  post Post @relation("PostMedia", fields: [post_id], references: [id])
+}
+
+model Comment {
+  id String @id @default(uuid())
+  post_id String
+  user_id String
+  content String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  media CommentMedia[] @relation("CommentMedia")
+
+}
+model CommentMedia {
+  id String @id @default(uuid())
+  comment_id String
+  media_url String
+  media_type String
+  public_id String
+  created_at DateTime @default(now())
+  comment Comment @relation("CommentMedia", fields: [comment_id], references: [id])
+}
