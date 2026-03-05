@@ -26,7 +26,10 @@ model User{
   followers Follow[] @relation("UserFollowers")
   following Follow[] @relation("UserFollowing")
   posts Post[] @relation("UserPosts") 
-
+  postLikes PostLike[] @relation("UserPostLikes")
+  conversations ConversationUser[] @relation("UserConversations")
+  messages Message[] @relation("UserMessages")
+  comments Comment[] @relation("UserComments")
 }
 
 model Follow {
@@ -35,8 +38,8 @@ model Follow {
   following_id String
   created_at DateTime @default(now())
 
-  follower User @relation("UserFollowers", fields: [follower_id], references: [id])
-  following User @relation("UserFollowing", fields: [following_id], references: [id])
+  follower User @relation("UserFollowers", fields: [follower_id], references: [id] ,onDelete: Cascade)
+  following User @relation("UserFollowing", fields: [following_id], references: [id], onDelete: Cascade)
   
   @@unique([follower_id, following_id])
 }
@@ -48,8 +51,21 @@ model Post {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  author User @relation("UserPosts", fields: [author_id], references: [id])
+  PostLike PostLike[] @relation("PostLikes")
+  author User @relation("UserPosts", fields: [author_id], references: [id], onDelete: Cascade)
   media PostMedia[] @relation("PostMedia")
+  comments Comment[] @relation("PostComments")
+}
+model PostLike {
+  id String @id @default(uuid())
+  post_id String
+  user_id String
+  created_at DateTime @default(now())
+
+  post Post @relation("PostLikes", fields: [post_id], references: [id], onDelete: Cascade)
+  user User @relation("UserPostLikes", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, user_id])
 }
 
 model PostMedia {
@@ -59,7 +75,7 @@ model PostMedia {
   media_type String
   public_id String
   created_at DateTime @default(now())
-  post Post @relation("PostMedia", fields: [post_id], references: [id])
+  post Post @relation("PostMedia", fields: [post_id], references: [id], onDelete: Cascade)
 }
 
 model Comment {
@@ -69,7 +85,10 @@ model Comment {
   content String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+
   media CommentMedia[] @relation("CommentMedia")
+  post Post @relation("PostComments", fields: [post_id], references: [id], onDelete: Cascade)
+  user User @relation("UserComments", fields: [user_id], references: [id], onDelete: Cascade)
 
 }
 model CommentMedia {
@@ -79,5 +98,51 @@ model CommentMedia {
   media_type String
   public_id String
   created_at DateTime @default(now())
-  comment Comment @relation("CommentMedia", fields: [comment_id], references: [id])
+  comment Comment @relation("CommentMedia", fields: [comment_id], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id String @id @default(uuid())
+  name String
+  is_group Boolean @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  conversationUsers ConversationUser[] @relation("ConversationUsers")
+  messages Message[] @relation("ConversationMessages")
+}
+
+model ConversationUser {
+  id String @id @default(uuid())
+  conversation_id String
+  user_id String
+  created_at DateTime @default(now())
+
+  conversation Conversation @relation("ConversationUsers", fields: [conversation_id], references: [id], onDelete: Cascade)
+  user User @relation("UserConversations", fields: [user_id], references: [id], onDelete: Cascade)
+  @@unique([conversation_id, user_id])
+}
+
+model Message {
+  id String @id @default(uuid())
+  conversation_id String
+  sender_id String
+  content String?
+  is_deleted Boolean @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  conversation Conversation @relation("ConversationMessages", fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender User @relation("UserMessages", fields: [sender_id], references: [id], onDelete: Cascade)
+  media MessageMedia[] @relation("MessageMedia")
+  
+}
+
+model MessageMedia {
+  id String @id @default(uuid())
+  message_id String
+  media_url String
+  media_type String
+  public_id String
+  created_at DateTime @default(now())
+  message Message @relation("MessageMedia", fields: [message_id], references: [id], onDelete: Cascade)
 }
