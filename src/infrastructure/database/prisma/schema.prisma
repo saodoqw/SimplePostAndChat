@@ -14,11 +14,12 @@ datasource db {
 }
 
 model User{
-  id String @id @default(uuid())
+  id String @id @default(uuid()) @unique
   username String @unique
   email String @unique
   password_hash String
   avatar_url String?
+  public_id String @unique
   bio String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -97,7 +98,7 @@ model CommentMedia {
   media_url String
   media_type String
   public_id String
-  created_at DateTime @default(now())
+  created_at DateTime @default(now()) 
   comment Comment @relation("CommentMedia", fields: [comment_id], references: [id], onDelete: Cascade)
 }
 
