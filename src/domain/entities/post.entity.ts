@@ -1,4 +1,4 @@
-export const POST_CONTENT_MAX_LENGTH = 2000;
+const POST_CONTENT_MAX_LENGTH = 2000;
 
 export class PostEntityValidationError extends Error {
     constructor(message: string) {
@@ -7,7 +7,7 @@ export class PostEntityValidationError extends Error {
     }
 }
 
-export interface PostEntityProps {
+interface PostEntityProps {
     id: string;
     authorId: string;
     content: string;

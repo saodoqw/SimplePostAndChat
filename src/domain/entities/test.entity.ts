@@ -1,12 +1,15 @@
-import e from "express";
 
+export interface TestEntityProps {
+    id: string;
+    name: string;
+}
 export class TestEntity {
     id: string;
     name: string;
 
-    constructor(id: string, name: string) {
-        this.id = id;
-        this.name = name;
+    constructor(props: TestEntityProps) {
+        this.id = props.id;
+        this.name = props.name;
     }
 
     validate(): void {
