@@ -1,5 +1,29 @@
 import {type UserEntity} from '../entities/user.entity.js';
 import {type FollowEntity} from '../entities/follow.entity.js'
-import { type PostEntity } from "../entities/post.entity.js";
-import { type PostMediaEntity } from "../entities/post-media.entity.js";
 
+export interface CreateUserRepositoryInput {
+    username: string;
+    email: string;
+    passwordHash: string;
+}
+export interface UpdateUserRepositoryInput {
+    username?: string;
+    email?: string;
+    passwordHash?: string;
+    publicId?: string;
+    avatarUrl?: string | null;
+    bio?: string | null;
+}
+export interface UserRepository {
+    create(data: CreateUserRepositoryInput): Promise<UserEntity>;
+    findById(id: string): Promise<UserEntity | null>;
+    findByEmail(email: string): Promise<UserEntity | null>;
+    findByUsername(username: string): Promise<UserEntity | null>;
+    update(id: string, data: UpdateUserRepositoryInput): Promise<UserEntity>;
+    delete(id: string): Promise<void>;
+    
+    // Sub-domain: Follow (follow/unfollow users, check follow status)
+    followUser(followerId: string, followingId: string): Promise<FollowEntity>;
+    unfollowUser(followerId: string, followingId: string): Promise<void>;
+    isFollowing(followerId: string, followingId: string): Promise<boolean>;
+}
