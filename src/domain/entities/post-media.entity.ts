@@ -23,7 +23,12 @@ export class PostMediaEntity {
     readonly createdAt: Date;
 
     constructor(props: PostMediaEntityProps) {
-        PostMediaEntity.validateForCreation(props.postId, props.mediaUrl, props.mediaType, props.publicId);
+        PostMediaEntity.validateForCreation(
+            props.postId,
+            props.mediaUrl,
+            props.mediaType,
+            props.publicId
+        );
 
         this.id = props.id;
         this.postId = props.postId.trim();
@@ -33,7 +38,12 @@ export class PostMediaEntity {
         this.createdAt = props.createdAt;
     }
 
-    static validateForCreation(postId: string, mediaUrl: string, mediaType: string, publicId: string): void {
+    static validateForCreation(
+        postId: string,
+        mediaUrl: string,
+        mediaType: string,
+        publicId: string
+    ): void {
         if (!postId.trim()) {
             throw new PostMediaEntityValidationError("postId is required");
         }

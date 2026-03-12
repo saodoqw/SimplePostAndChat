@@ -23,7 +23,12 @@ export class CommentMediaEntity {
     readonly createdAt: Date;
 
     constructor(props: CommentMediaEntityProps) {
-        CommentMediaEntity.validateForCreation(props.commentId, props.mediaUrl, props.mediaType, props.publicId);
+        CommentMediaEntity.validateForCreation(
+            props.commentId,
+            props.mediaUrl,
+            props.mediaType,
+            props.publicId
+        );
 
         this.id = props.id;
         this.commentId = props.commentId.trim();
@@ -33,7 +38,12 @@ export class CommentMediaEntity {
         this.createdAt = props.createdAt;
     }
 
-    static validateForCreation(commentId: string, mediaUrl: string, mediaType: string, publicId: string): void {
+    static validateForCreation(
+        commentId: string,
+        mediaUrl: string,
+        mediaType: string,
+        publicId: string
+    ): void {
         if (!commentId.trim()) {
             throw new CommentMediaEntityValidationError("commentId is required");
         }

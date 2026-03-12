@@ -23,7 +23,11 @@ export class MessageMediaEntity {
     readonly createdAt: Date;
 
     constructor(props: MessageMediaEntityProps) {
-        MessageMediaEntity.validateForCreation(props.messageId, props.mediaUrl, props.mediaType, props.publicId);
+        MessageMediaEntity.validateForCreation(
+            props.messageId,
+            props.mediaUrl,
+            props.mediaType,
+            props.publicId);
 
         this.id = props.id;
         this.messageId = props.messageId.trim();
@@ -33,7 +37,12 @@ export class MessageMediaEntity {
         this.createdAt = props.createdAt;
     }
 
-    static validateForCreation(messageId: string, mediaUrl: string, mediaType: string, publicId: string): void {
+    static validateForCreation(
+        messageId: string,
+        mediaUrl: string,
+        mediaType: string,
+        publicId: string
+    ): void {
         if (!messageId.trim()) {
             throw new MessageMediaEntityValidationError("messageId is required");
         }
