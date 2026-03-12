@@ -43,6 +43,21 @@ export interface FindPostsResult {
     nextCursor?: string;
 }
 
+export interface FindPostComment {
+    postId: string;
+    cursor?: string;
+    limit: number;
+}
+export interface CommentWithMediaRepositoryResult {
+    comment: CommentEntity;
+    media: CommentMediaEntity[];
+}
+
+export interface FindPostCommentsWithMediaResult {
+    comments: CommentWithMediaRepositoryResult[];
+    nextCursor?: string;
+}
+
 export interface CreatePostCommentRepositoryInput {
     postId: string;
     userId: string;
@@ -54,6 +69,7 @@ export interface CommentMediaRepositoryInput {
     mediaType: string;
     publicId: string;
 }
+
 
 export interface CreatePostCommentWithMediaRepositoryInput extends CreatePostCommentRepositoryInput {
     media: CommentMediaRepositoryInput[];
@@ -78,14 +94,18 @@ export interface PostRepository {
     findById(postId: string): Promise<PostEntity | null>;
     findMany(query: FindPostQuery): Promise<FindPostsResult>;
 
+
     // Sub-domain: PostLike (like/unlike)
+    findLikesCount(postId: string): Promise<number>;
     likePost(postId: string, userId: string): Promise<void>;
     unlikePost(postId: string, userId: string): Promise<void>;
     isPostLikedByUser(postId: string, userId: string): Promise<boolean>;
 
-    // Sub-domain: PostComment (add/remove comments)
+    // Sub-domain: PostComment (add/retrieve/remove comments)
+    findCommentCount(postId: string): Promise<number>;
     createComment(data: CreatePostCommentRepositoryInput): Promise<CommentEntity>;
     createCommentWithMedia(data: CreatePostCommentWithMediaRepositoryInput): Promise<PostCommentWithMediaRepositoryResult>;
+    findComments(query: FindPostComment): Promise<FindPostCommentsWithMediaResult>;
     deleteComment(commentId: string): Promise<void>;
     
 }
