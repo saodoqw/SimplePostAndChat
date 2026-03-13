@@ -14,7 +14,7 @@ interface UserEntityProps {
     username: string;
     email: string;
     passwordHash: string;
-    publicId: string;
+    publicId?: string | null;
     avatarUrl?: string | null;
     bio?: string | null;
     createdAt: Date;
@@ -26,7 +26,7 @@ export class UserEntity {
     readonly username: string;
     readonly email: string;
     readonly passwordHash: string;
-    readonly publicId: string;
+    readonly publicId: string | null;
     readonly avatarUrl: string | null;
     readonly bio: string | null;
     readonly createdAt: Date;
@@ -37,14 +37,13 @@ export class UserEntity {
             props.username,
             props.email,
             props.passwordHash,
-            props.publicId,
             props.bio
         );
         this.id = props.id;
         this.username = props.username.trim();
         this.email = props.email.trim().toLowerCase();
         this.passwordHash = props.passwordHash;
-        this.publicId = props.publicId.trim();
+        this.publicId = props.publicId ?? null;
         this.avatarUrl = props.avatarUrl ?? null;
         this.bio = props.bio?.trim() ?? null;
         this.createdAt = props.createdAt;
@@ -55,11 +54,9 @@ export class UserEntity {
         username: string,
         email: string,
         passwordHash: string,
-        publicId: string,
         bio?: string | null): void {
         const normalizedUsername = username.trim();
         const normalizedEmail = email.trim();
-        const normalizedPublicId = publicId.trim();
         const normalizedBio = bio?.trim();
         if (!normalizedUsername) {
             throw new UserEntityValidationError("username is required");
@@ -74,10 +71,6 @@ export class UserEntity {
         }
         if (!EMAIL_REGEX.test(normalizedEmail)) {
             throw new UserEntityValidationError("email is invalid");
-        }
-
-        if (!normalizedPublicId) {
-            throw new UserEntityValidationError("publicId is required");
         }
         if (!passwordHash) {
             throw new UserEntityValidationError("passwordHash is required");
