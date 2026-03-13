@@ -30,6 +30,7 @@ export type UserMinAggregateOutputType = {
   email: string | null
   password_hash: string | null
   avatar_url: string | null
+  public_id: string | null
   bio: string | null
   created_at: Date | null
   updated_at: Date | null
@@ -41,6 +42,7 @@ export type UserMaxAggregateOutputType = {
   email: string | null
   password_hash: string | null
   avatar_url: string | null
+  public_id: string | null
   bio: string | null
   created_at: Date | null
   updated_at: Date | null
@@ -52,6 +54,7 @@ export type UserCountAggregateOutputType = {
   email: number
   password_hash: number
   avatar_url: number
+  public_id: number
   bio: number
   created_at: number
   updated_at: number
@@ -65,6 +68,7 @@ export type UserMinAggregateInputType = {
   email?: true
   password_hash?: true
   avatar_url?: true
+  public_id?: true
   bio?: true
   created_at?: true
   updated_at?: true
@@ -76,6 +80,7 @@ export type UserMaxAggregateInputType = {
   email?: true
   password_hash?: true
   avatar_url?: true
+  public_id?: true
   bio?: true
   created_at?: true
   updated_at?: true
@@ -87,6 +92,7 @@ export type UserCountAggregateInputType = {
   email?: true
   password_hash?: true
   avatar_url?: true
+  public_id?: true
   bio?: true
   created_at?: true
   updated_at?: true
@@ -171,6 +177,7 @@ export type UserGroupByOutputType = {
   email: string
   password_hash: string
   avatar_url: string | null
+  public_id: string
   bio: string | null
   created_at: Date
   updated_at: Date
@@ -203,6 +210,7 @@ export type UserWhereInput = {
   email?: Prisma.StringFilter<"User"> | string
   password_hash?: Prisma.StringFilter<"User"> | string
   avatar_url?: Prisma.StringNullableFilter<"User"> | string | null
+  public_id?: Prisma.StringFilter<"User"> | string
   bio?: Prisma.StringNullableFilter<"User"> | string | null
   created_at?: Prisma.DateTimeFilter<"User"> | Date | string
   updated_at?: Prisma.DateTimeFilter<"User"> | Date | string
@@ -221,6 +229,7 @@ export type UserOrderByWithRelationInput = {
   email?: Prisma.SortOrder
   password_hash?: Prisma.SortOrder
   avatar_url?: Prisma.SortOrderInput | Prisma.SortOrder
+  public_id?: Prisma.SortOrder
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrder
   updated_at?: Prisma.SortOrder
@@ -242,6 +251,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   password_hash?: Prisma.StringFilter<"User"> | string
   avatar_url?: Prisma.StringNullableFilter<"User"> | string | null
+  public_id?: Prisma.StringFilter<"User"> | string
   bio?: Prisma.StringNullableFilter<"User"> | string | null
   created_at?: Prisma.DateTimeFilter<"User"> | Date | string
   updated_at?: Prisma.DateTimeFilter<"User"> | Date | string
@@ -252,7 +262,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   conversations?: Prisma.ConversationUserListRelationFilter
   messages?: Prisma.MessageListRelationFilter
   comments?: Prisma.CommentListRelationFilter
-}, "id" | "username" | "email">
+}, "id" | "id" | "username" | "email">
 
 export type UserOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -260,6 +270,7 @@ export type UserOrderByWithAggregationInput = {
   email?: Prisma.SortOrder
   password_hash?: Prisma.SortOrder
   avatar_url?: Prisma.SortOrderInput | Prisma.SortOrder
+  public_id?: Prisma.SortOrder
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrder
   updated_at?: Prisma.SortOrder
@@ -277,6 +288,7 @@ export type UserScalarWhereWithAggregatesInput = {
   email?: Prisma.StringWithAggregatesFilter<"User"> | string
   password_hash?: Prisma.StringWithAggregatesFilter<"User"> | string
   avatar_url?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  public_id?: Prisma.StringWithAggregatesFilter<"User"> | string
   bio?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   created_at?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updated_at?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -288,6 +300,7 @@ export type UserCreateInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -306,6 +319,7 @@ export type UserUncheckedCreateInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -324,6 +338,7 @@ export type UserUpdateInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -342,6 +357,7 @@ export type UserUncheckedUpdateInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -360,6 +376,7 @@ export type UserCreateManyInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -371,6 +388,7 @@ export type UserUpdateManyMutationInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -382,6 +400,7 @@ export type UserUncheckedUpdateManyInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -393,6 +412,7 @@ export type UserCountOrderByAggregateInput = {
   email?: Prisma.SortOrder
   password_hash?: Prisma.SortOrder
   avatar_url?: Prisma.SortOrder
+  public_id?: Prisma.SortOrder
   bio?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
   updated_at?: Prisma.SortOrder
@@ -404,6 +424,7 @@ export type UserMaxOrderByAggregateInput = {
   email?: Prisma.SortOrder
   password_hash?: Prisma.SortOrder
   avatar_url?: Prisma.SortOrder
+  public_id?: Prisma.SortOrder
   bio?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
   updated_at?: Prisma.SortOrder
@@ -415,6 +436,7 @@ export type UserMinOrderByAggregateInput = {
   email?: Prisma.SortOrder
   password_hash?: Prisma.SortOrder
   avatar_url?: Prisma.SortOrder
+  public_id?: Prisma.SortOrder
   bio?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
   updated_at?: Prisma.SortOrder
@@ -541,6 +563,7 @@ export type UserCreateWithoutFollowersInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -558,6 +581,7 @@ export type UserUncheckedCreateWithoutFollowersInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -580,6 +604,7 @@ export type UserCreateWithoutFollowingInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -597,6 +622,7 @@ export type UserUncheckedCreateWithoutFollowingInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -630,6 +656,7 @@ export type UserUpdateWithoutFollowersInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -647,6 +674,7 @@ export type UserUncheckedUpdateWithoutFollowersInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -675,6 +703,7 @@ export type UserUpdateWithoutFollowingInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -692,6 +721,7 @@ export type UserUncheckedUpdateWithoutFollowingInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -709,6 +739,7 @@ export type UserCreateWithoutPostsInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -726,6 +757,7 @@ export type UserUncheckedCreateWithoutPostsInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -759,6 +791,7 @@ export type UserUpdateWithoutPostsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -776,6 +809,7 @@ export type UserUncheckedUpdateWithoutPostsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -793,6 +827,7 @@ export type UserCreateWithoutPostLikesInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -810,6 +845,7 @@ export type UserUncheckedCreateWithoutPostLikesInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -843,6 +879,7 @@ export type UserUpdateWithoutPostLikesInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -860,6 +897,7 @@ export type UserUncheckedUpdateWithoutPostLikesInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -877,6 +915,7 @@ export type UserCreateWithoutCommentsInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -894,6 +933,7 @@ export type UserUncheckedCreateWithoutCommentsInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -927,6 +967,7 @@ export type UserUpdateWithoutCommentsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -944,6 +985,7 @@ export type UserUncheckedUpdateWithoutCommentsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -961,6 +1003,7 @@ export type UserCreateWithoutConversationsInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -978,6 +1021,7 @@ export type UserUncheckedCreateWithoutConversationsInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -1011,6 +1055,7 @@ export type UserUpdateWithoutConversationsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1028,6 +1073,7 @@ export type UserUncheckedUpdateWithoutConversationsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1045,6 +1091,7 @@ export type UserCreateWithoutMessagesInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -1062,6 +1109,7 @@ export type UserUncheckedCreateWithoutMessagesInput = {
   email: string
   password_hash: string
   avatar_url?: string | null
+  public_id: string
   bio?: string | null
   created_at?: Date | string
   updated_at?: Date | string
@@ -1095,6 +1143,7 @@ export type UserUpdateWithoutMessagesInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1112,6 +1161,7 @@ export type UserUncheckedUpdateWithoutMessagesInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   password_hash?: Prisma.StringFieldUpdateOperationsInput | string
   avatar_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  public_id?: Prisma.StringFieldUpdateOperationsInput | string
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1214,6 +1264,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   email?: boolean
   password_hash?: boolean
   avatar_url?: boolean
+  public_id?: boolean
   bio?: boolean
   created_at?: boolean
   updated_at?: boolean
@@ -1233,6 +1284,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   email?: boolean
   password_hash?: boolean
   avatar_url?: boolean
+  public_id?: boolean
   bio?: boolean
   created_at?: boolean
   updated_at?: boolean
@@ -1244,6 +1296,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   email?: boolean
   password_hash?: boolean
   avatar_url?: boolean
+  public_id?: boolean
   bio?: boolean
   created_at?: boolean
   updated_at?: boolean
@@ -1255,12 +1308,13 @@ export type UserSelectScalar = {
   email?: boolean
   password_hash?: boolean
   avatar_url?: boolean
+  public_id?: boolean
   bio?: boolean
   created_at?: boolean
   updated_at?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "username" | "email" | "password_hash" | "avatar_url" | "bio" | "created_at" | "updated_at", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "username" | "email" | "password_hash" | "avatar_url" | "public_id" | "bio" | "created_at" | "updated_at", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   followers?: boolean | Prisma.User$followersArgs<ExtArgs>
   following?: boolean | Prisma.User$followingArgs<ExtArgs>
@@ -1291,6 +1345,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     email: string
     password_hash: string
     avatar_url: string | null
+    public_id: string
     bio: string | null
     created_at: Date
     updated_at: Date
@@ -1729,6 +1784,7 @@ export interface UserFieldRefs {
   readonly email: Prisma.FieldRef<"User", 'String'>
   readonly password_hash: Prisma.FieldRef<"User", 'String'>
   readonly avatar_url: Prisma.FieldRef<"User", 'String'>
+  readonly public_id: Prisma.FieldRef<"User", 'String'>
   readonly bio: Prisma.FieldRef<"User", 'String'>
   readonly created_at: Prisma.FieldRef<"User", 'DateTime'>
   readonly updated_at: Prisma.FieldRef<"User", 'DateTime'>

@@ -1273,6 +1273,7 @@ export const UserScalarFieldEnum = {
   email: 'email',
   password_hash: 'password_hash',
   avatar_url: 'avatar_url',
+  public_id: 'public_id',
   bio: 'bio',
   created_at: 'created_at',
   updated_at: 'updated_at'
@@ -1362,6 +1363,7 @@ export type ConversationScalarFieldEnum = (typeof ConversationScalarFieldEnum)[k
 export const ConversationUserScalarFieldEnum = {
   id: 'id',
   conversation_id: 'conversation_id',
+  is_admin: 'is_admin',
   user_id: 'user_id',
   created_at: 'created_at'
 } as const

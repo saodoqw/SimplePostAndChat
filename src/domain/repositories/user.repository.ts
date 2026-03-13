@@ -14,6 +14,7 @@ export interface UpdateUserRepositoryInput {
     avatarUrl?: string | null;
     bio?: string | null;
 }
+
 export interface UserRepository {
     create(data: CreateUserRepositoryInput): Promise<UserEntity>;
     findById(id: string): Promise<UserEntity | null>;
@@ -26,4 +27,5 @@ export interface UserRepository {
     followUser(followerId: string, followingId: string): Promise<FollowEntity>;
     unfollowUser(followerId: string, followingId: string): Promise<void>;
     isFollowing(followerId: string, followingId: string): Promise<boolean>;
+    isbothFollowing(userId1: string, userId2: string): Promise<boolean>;
 }

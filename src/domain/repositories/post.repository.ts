@@ -3,11 +3,7 @@ import { type PostMediaEntity } from "../entities/post-media.entity.js";
 import { type CommentEntity } from "../entities/comment.entity.js";
 import { type CommentMediaEntity } from "../entities/comment-media.entity.js";
 
-export interface PostMediaRepositoryInput {
-    mediaUrl: string;
-    mediaType: string;
-    publicId: string;
-}
+
 
 export interface CreatePostRepositoryInput {
     authorId: string;
@@ -16,6 +12,12 @@ export interface CreatePostRepositoryInput {
 
 export interface CreatePostWithMediaRepositoryInput extends CreatePostRepositoryInput {
     media: PostMediaRepositoryInput[];
+}
+
+export interface PostMediaRepositoryInput {
+    mediaUrl: string;
+    mediaType: string;
+    publicId: string;
 }
 
 export interface PostWithMediaRepositoryResult {
@@ -107,5 +109,5 @@ export interface PostRepository {
     createCommentWithMedia(data: CreatePostCommentWithMediaRepositoryInput): Promise<PostCommentWithMediaRepositoryResult>;
     findComments(query: FindPostComment): Promise<FindPostCommentsWithMediaResult>;
     deleteComment(commentId: string): Promise<void>;
-    
+
 }
