@@ -3,9 +3,16 @@ import { type ConversationUserEntity } from "../entities/conversation-user.entit
 import { type MessageEntity } from "../entities/message.entity.js";
 import { type MessageMediaEntity } from "../entities/message-media.entity.js";
 
+
+export type SortOrder = "asc" | "desc";
+export type ConversationSortBy = "created_at" | "updated_at";
+export type MessageSortBy = "created_at" | "updated_at";
+export type MessagePaginationDirection = "up" | "down";
+
 export interface CreateConversationRepositoryInput {
 	name: string;
 	isGroup?: boolean;
+	creatorUserId?: string;
 	userIds: string[];
 }
 export interface UpdateConversationRepositoryInput {
@@ -16,6 +23,8 @@ export interface FindConversationsQuery {
 	userId: string;
 	cursor?: string;
 	limit: number;
+	sortBy?: ConversationSortBy;
+	sortOrder?: SortOrder;
 }
 
 export interface FindConversationsResult {
@@ -58,11 +67,16 @@ export interface FindMessagesQuery {
 	conversationId: string;
 	cursor?: string;
 	limit: number;
+	sortBy?: MessageSortBy;
+	sortOrder?: SortOrder;
+	search: string;
+	direction?: MessagePaginationDirection;
 }
 
 export interface FindMessagesResult {
 	messages: MessageWithMediaRepositoryResult[];
 	nextCursor?: string;
+	prevCursor?: string;
 }
 
 
@@ -75,7 +89,7 @@ export interface ChatRepository {
 
 	// Find conversations for a user
 	findConversations(query: FindConversationsQuery): Promise<FindConversationsResult>;
-	findConversationByUsername(username: string): Promise<FindConversationsResult | null>;
+	// Get conversation details along with its users
 	findConversationWithUsers(conversationId: string): Promise<ConversationWithUsersRepositoryResult>;
 
     // Sub-domain: ConversationUser
@@ -90,6 +104,5 @@ export interface ChatRepository {
     updateMessage(messageId: string, input: UpdateMessageRepositoryInput): Promise<MessageEntity>;
 	findMessages(query: FindMessagesQuery): Promise<FindMessagesResult>;
     deleteMessage(messageId: string): Promise<void>;
-
-
+	displayMessages(conversationId: string): Promise<MessageWithMediaRepositoryResult[]>;
 }

@@ -4,39 +4,20 @@ import { type CommentEntity } from "../entities/comment.entity.js";
 import { type CommentMediaEntity } from "../entities/comment-media.entity.js";
 
 
+export type SortOrder = "asc" | "desc";
+export type PostSortBy = "created_at" | "updated_at";
+export type CommentSortBy = "created_at" | "updated_at";
+
+
 
 export interface CreatePostRepositoryInput {
     authorId: string;
     content: string;
 }
 
-export interface CreatePostWithMediaRepositoryInput extends CreatePostRepositoryInput {
-    media: PostMediaRepositoryInput[];
-}
-
-export interface PostMediaRepositoryInput {
-    mediaUrl: string;
-    mediaType: string;
-    publicId: string;
-}
-
-export interface PostWithMediaRepositoryResult {
-    post: PostEntity;
-    media: PostMediaEntity[];
-}
-
-
 export interface UpdatePostRepositoryInput {
     content?: string;
 }
-
-export interface UpdatePostWithMediaRepositoryInput extends UpdatePostRepositoryInput {
-    media: PostMediaRepositoryInput[];
-}
-
-export type SortOrder = "asc" | "desc";
-export type PostSortBy = "created_at" | "updated_at";
-export type CommentSortBy = "created_at" | "updated_at";
 
 export interface FindPostQuery {
     authorId?: string;
@@ -46,9 +27,42 @@ export interface FindPostQuery {
     sortOrder?: SortOrder;
 }
 
+export interface CommentWithMediaRepositoryResult {
+    comment: CommentEntity;
+    media: CommentMediaEntity[];
+}
+
+export interface PostWithMediaRepositoryResult {
+    post: PostEntity;
+    media: PostMediaEntity[];
+}
+
+export interface CreatePostWithMediaRepositoryInput extends CreatePostRepositoryInput {
+    media: MediaInput[];
+}
+
+export interface UpdatePostWithMediaRepositoryInput extends UpdatePostRepositoryInput {
+    media: MediaInput[];
+}
+
+export interface MediaInput {
+    mediaUrl: string;
+    mediaType: string;
+    publicId: string;
+}
+
 export interface FindPostsResult {
-    posts: PostEntity[];
+    data: PostWithMediaRepositoryResult[];
     nextCursor?: string;
+    limit: number;
+    sortBy: PostSortBy;
+}
+
+export interface FindPostCommentsResult {
+    data: CommentWithMediaRepositoryResult[];
+    nextCursor?: string;
+    limit: number;
+    sortBy: CommentSortBy;
 }
 
 export interface FindPostComment {
@@ -58,15 +72,6 @@ export interface FindPostComment {
     sortBy?: CommentSortBy;
     sortOrder?: SortOrder;
 }
-export interface CommentWithMediaRepositoryResult {
-    comment: CommentEntity;
-    media: CommentMediaEntity[];
-}
-
-export interface FindPostCommentsWithMediaResult {
-    comments: CommentWithMediaRepositoryResult[];
-    nextCursor?: string;
-}
 
 export interface CreatePostCommentRepositoryInput {
     postId: string;
@@ -74,20 +79,12 @@ export interface CreatePostCommentRepositoryInput {
     content: string;
 }
 
-export interface CommentMediaRepositoryInput {
-    mediaUrl: string;
-    mediaType: string;
-    publicId: string;
-}
-
-
-export interface CreatePostCommentWithMediaRepositoryInput extends CreatePostCommentRepositoryInput {
-    media: CommentMediaRepositoryInput[];
-}
-
 export interface PostCommentWithMediaRepositoryResult {
     comment: CommentEntity;
     media: CommentMediaEntity[];
+}
+export interface CreatePostCommentWithMediaRepositoryInput extends CreatePostCommentRepositoryInput {
+    media: MediaInput[];
 }
 
 export interface PostRepository {
@@ -101,8 +98,8 @@ export interface PostRepository {
     updatePostWithMedia(postId: string, data: UpdatePostWithMediaRepositoryInput): Promise<PostWithMediaRepositoryResult>;
 
     // Find Posts
-    findById(postId: string): Promise<PostEntity | null>;
-    findMany(query: FindPostQuery): Promise<FindPostsResult>;
+    findById(postId: string): Promise<PostWithMediaRepositoryResult | null>;
+    findManyPosts(query: FindPostQuery): Promise<FindPostsResult>;
 
 
     // Sub-domain: PostLike (like/unlike)
@@ -115,7 +112,7 @@ export interface PostRepository {
     findCommentCount(postId: string): Promise<number>;
     createComment(data: CreatePostCommentRepositoryInput): Promise<CommentEntity>;
     createCommentWithMedia(data: CreatePostCommentWithMediaRepositoryInput): Promise<PostCommentWithMediaRepositoryResult>;
-    findComments(query: FindPostComment): Promise<FindPostCommentsWithMediaResult>;
+    findCommentsFromPost(query: FindPostComment): Promise<FindPostCommentsResult>;
     deleteComment(commentId: string): Promise<void>;
 
 }

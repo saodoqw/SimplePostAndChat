@@ -9,7 +9,7 @@ import {
     type CreatePostRepositoryInput,
     type CreatePostWithMediaRepositoryInput,
     type FindPostComment,
-    type FindPostCommentsWithMediaResult,
+    type FindPostCommentsResult,
     type FindPostQuery,
     type FindPostsResult,
     type PostCommentWithMediaRepositoryResult,
@@ -138,13 +138,10 @@ export class PrismaPostRepository implements PostRepository {
                     })
                 )
             );
-            const mediaRecordsSorted = await tx.postMedia.findMany({
-                where: { post_id: postRecord.id },
-                orderBy: { created_at: "asc" },
-            });
+
             return {
                 post: PostEntityMapper.toDomain(postRecord),
-                media: mediaRecordsSorted.map((record) => PostMediaEntityMapper.toDomain(record)),
+                media: mediaRecords.map((record) => PostMediaEntityMapper.toDomain(record)),
             };
         });
         return transactionResult;
@@ -197,19 +194,23 @@ export class PrismaPostRepository implements PostRepository {
         });
     }
 
-    async findById(postId: string): Promise<PostEntity | null> {
+    async findById(postId: string): Promise<PostWithMediaRepositoryResult | null> {
         const record = await prisma.post.findUnique({
             where: { id: postId },
+            include: { media: true },
         });
 
         if (!record) {
             return null;
         }
 
-        return PostEntityMapper.toDomain(record);
+        return {
+            post: PostEntityMapper.toDomain(record),
+            media: record.media.map((mediaRecord) => PostMediaEntityMapper.toDomain(mediaRecord)),
+        };
     }
 
-    async findMany(query: FindPostQuery): Promise<FindPostsResult> {
+    async findManyPosts(query: FindPostQuery): Promise<FindPostsResult> {
         const limit = this.normalizeLimit(query.limit);
         const sortBy = query.sortBy ?? DEFAULT_POST_SORT_BY;
         const sortOrder = query.sortOrder ?? DEFAULT_SORT_ORDER;
@@ -217,28 +218,26 @@ export class PrismaPostRepository implements PostRepository {
         const records = await prisma.post.findMany({
             where: {
                 ...(query.authorId ? { author_id: query.authorId } : {}),
-            },
+            }, take: limit + 1,
             orderBy: this.buildPostOrderBy(sortBy, sortOrder),
-            take: limit + 1,
-            ...(query.cursor
-                ? {
-                    cursor: { id: query.cursor },
-                    skip: 1,
-                }
-                : {}),
+            ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+            include: { media: true },
         });
 
         const hasNextCursor = records.length > limit;
+        // Slice the records to return only the requested page size
         const pageRecords = hasNextCursor ? records.slice(0, limit) : records;
-
         return {
-            posts: pageRecords.map((record) => PostEntityMapper.toDomain(record)),
-            nextCursor:
-                hasNextCursor && pageRecords.length
-                    ? pageRecords[pageRecords.length - 1].id
-                    : undefined,
+            data: pageRecords.map((record) => ({
+                post: PostEntityMapper.toDomain(record),
+                media: record.media.map((mediaRecord) => PostMediaEntityMapper.toDomain(mediaRecord)),
+            })),
+            nextCursor: hasNextCursor && pageRecords.length ? pageRecords[pageRecords.length - 1].id : undefined,
+            limit,
+            sortBy,
         };
     }
+
 
     async findLikesCount(postId: string): Promise<number> {
         return prisma.postLike.count({
@@ -372,9 +371,8 @@ export class PrismaPostRepository implements PostRepository {
         });
     }
 
-    async findComments(query: FindPostComment): Promise<FindPostCommentsWithMediaResult> {
+    async findCommentsFromPost(query: FindPostComment): Promise<FindPostCommentsResult> {
         await this.ensurePostExists(query.postId);
-
         const limit = this.normalizeLimit(query.limit);
         const sortBy = query.sortBy ?? DEFAULT_COMMENT_SORT_BY;
         const sortOrder = query.sortOrder ?? DEFAULT_SORT_ORDER;
@@ -389,47 +387,22 @@ export class PrismaPostRepository implements PostRepository {
                     skip: 1,
                 }
                 : {}),
+            include: { media: true },
         });
 
         const hasNextCursor = records.length > limit;
         const pageRecords = hasNextCursor ? records.slice(0, limit) : records;
-        const commentIds = pageRecords.map((record) => record.id);
-
-        const mediaRecords = commentIds.length
-            ? await prisma.commentMedia.findMany({
-                where: {
-                    comment_id: {
-                        in: commentIds,
-                    },
-                },
-                orderBy: { created_at: "asc" },
-            })
-            : [];
-
-        const mediaByCommentId = new Map<string, PrismaCommentMediaRecord[]>();
-
-        for (const mediaRecord of mediaRecords) {
-            const existingMedia = mediaByCommentId.get(mediaRecord.comment_id);
-
-            if (existingMedia) {
-                existingMedia.push(mediaRecord);
-                continue;
-            }
-
-            mediaByCommentId.set(mediaRecord.comment_id, [mediaRecord]);
-        }
-
         return {
-            comments: pageRecords.map((record) => ({
+            data: pageRecords.map((record) => ({
                 comment: CommentEntityMapper.toDomain(record),
-                media: (mediaByCommentId.get(record.id) ?? []).map((mediaRecord) =>
-                    CommentMediaEntityMapper.toDomain(mediaRecord)
-                ),
+                media: record.media.map((mediaRecord) => CommentMediaEntityMapper.toDomain(mediaRecord)),
             })),
             nextCursor:
                 hasNextCursor && pageRecords.length
                     ? pageRecords[pageRecords.length - 1].id
                     : undefined,
+            limit,
+            sortBy,
         };
     }
 
