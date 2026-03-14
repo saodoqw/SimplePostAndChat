@@ -28,7 +28,7 @@ export class CreatePostUseCase {
         const content = input.content.trim();
 
         try {
-            PostEntity.validateForCreation(authorId, content);
+            PostEntity.validateForCreation(content, authorId);
         } catch (error) {
             if (error instanceof PostEntityValidationError) {
                 throw new CreatePostValidationError(error.message);

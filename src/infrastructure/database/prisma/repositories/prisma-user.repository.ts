@@ -11,8 +11,7 @@ import {
 } from '../generated/client.js';
 import { prisma } from '../prismaClient.js';
 
-
-// Mapper functions to convert between Prisma records and domain entities
+// Convert Prisma rows (snake_case) to domain entities (camelCase).
 class UserEntityMapper {
     static toDomain(record: PrismaUserRecord): UserEntity {
         return new UserEntity({
@@ -20,7 +19,7 @@ class UserEntityMapper {
             username: record.username,
             email: record.email,
             passwordHash: record.password_hash,
-            publicId: record.public_id ,
+            publicId: record.public_id,
             avatarUrl: record.avatar_url,
             bio: record.bio,
             createdAt: record.created_at,
@@ -42,13 +41,13 @@ class FollowEntityMapper {
 export class PrismaUserRepository implements UserRepository {
 
     async create(data: CreateUserRepositoryInput): Promise<UserEntity> {
-        // Call Prisma Client to create a new user in the database
+        // New users can start without avatar, so Cloudinary public_id,avatar_url is null by default.
         const record = await prisma.user.create({
             data: {
                 username: data.username,
                 email: data.email,
                 password_hash: data.passwordHash,
-                public_id: '',        // if upload avatar then set it, else keep it empty string
+                public_id: null,   
                 avatar_url: null,
                 bio: null,
             },
@@ -91,7 +90,7 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     async update(id: string, data: UpdateUserRepositoryInput): Promise<UserEntity> {
-        // Check if the user exists before updating
+        // Explicit existence check to keep a clear domain error message.
         const existingRecord = await prisma.user.findUnique({
             where: { id },
         });
@@ -114,7 +113,7 @@ export class PrismaUserRepository implements UserRepository {
 
 
     async delete(id: string): Promise<void> {
-        // Check if the user exists before deleting
+        // Explicit existence check to keep a clear domain error message.
         const existingRecord = await prisma.user.findUnique({
             where: { id },
         });
@@ -127,11 +126,11 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     async followUser(followerId: string, followingId: string): Promise<FollowEntity> {
-        // Check if the user is trying to follow themselves
+        // Business rule: a user cannot follow themselves.
         if (followerId.trim() === followingId.trim()) {
             throw new Error('User cannot follow themselves');
         }
-        // Check if the follow relationship already exists before creating
+        // Keep behavior deterministic instead of relying on unique-constraint errors.
         const existingFollow = await prisma.follow.findUnique({
             where: {
                 follower_id_following_id: {
@@ -153,11 +152,10 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     async unfollowUser(followerId: string, followingId: string): Promise<void> {
-        // Check if the user is trying to unfollow themselves
+        // Keep symmetry with followUser rule.
         if (followerId.trim() === followingId.trim()) {
             throw new Error('User cannot unfollow themselves');
         }
-        // Check if the follow relationship exists before deleting
         const existingFollow = await prisma.follow.findUnique({
             where: {
                 follower_id_following_id: {
@@ -180,7 +178,6 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     async isFollowing(followerId: string, followingId: string): Promise<boolean> {
-        // Check if the follow relationship exists
         const existingFollow = await prisma.follow.findUnique({
             where: {
                 follower_id_following_id: {
@@ -196,7 +193,7 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     async isbothFollowing(userId1: string, userId2: string): Promise<boolean> {
-        // Check if both users are following each other
+        // True only when both follow directions exist.
         const follow1 = await prisma.follow.findUnique({
             where: {
                 follower_id_following_id: {

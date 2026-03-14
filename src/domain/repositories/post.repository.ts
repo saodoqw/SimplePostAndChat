@@ -34,10 +34,16 @@ export interface UpdatePostWithMediaRepositoryInput extends UpdatePostRepository
     media: PostMediaRepositoryInput[];
 }
 
+export type SortOrder = "asc" | "desc";
+export type PostSortBy = "created_at" | "updated_at";
+export type CommentSortBy = "created_at" | "updated_at";
+
 export interface FindPostQuery {
     authorId?: string;
     cursor?: string;
     limit: number;
+    sortBy?: PostSortBy;
+    sortOrder?: SortOrder;
 }
 
 export interface FindPostsResult {
@@ -49,6 +55,8 @@ export interface FindPostComment {
     postId: string;
     cursor?: string;
     limit: number;
+    sortBy?: CommentSortBy;
+    sortOrder?: SortOrder;
 }
 export interface CommentWithMediaRepositoryResult {
     comment: CommentEntity;
