@@ -5,11 +5,13 @@ import express,{
 } from 'express';
 import cors from 'cors';
 import apiRoutes from './interfaces/routes/index.js';
+import { uploadMiddleware } from './interfaces/middlewares/upload.middleware.js';
 
 const app = express();
 
 //middlewares
-app.use(cors());    
+app.use(cors());
+app.use(uploadMiddleware);
 app.use(express.json());
 
 //health check endpoint

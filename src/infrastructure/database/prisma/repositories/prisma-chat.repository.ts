@@ -381,6 +381,7 @@ export class PrismaChatRepository implements ChatRepository {
                 media: true,
             },
             orderBy: [{ created_at: "asc" }, { id: "asc" }],
+            take: 20,
         });
         return messageRecords.map((messageRecord) => ({
             message: MessageEntityMapper.toEntity(messageRecord),

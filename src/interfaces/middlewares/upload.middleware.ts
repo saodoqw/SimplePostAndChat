@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import multer, { FileFilterCallback } from 'multer';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/mpeg', 'video/quicktime'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 const fileFilter = (
@@ -19,7 +19,8 @@ const fileFilter = (
     }
 };
 
+
 export const uploadMiddleware = multer({
     fileFilter,
-    limits: { fileSize: MAX_FILE_SIZE },
-});
+    limits: { fileSize: MAX_FILE_SIZE },  
+}).any();

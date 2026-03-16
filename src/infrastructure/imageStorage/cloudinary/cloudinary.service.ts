@@ -1,6 +1,6 @@
 import cloudinary from "./config/cloudinary.config.js";
 
-class CloudinaryService {
+export class CloudinaryService {
    async uploadImage(filePath: string, folder: string) {
     const result = await cloudinary.uploader.upload(filePath, {
       folder: folder,
@@ -51,4 +51,3 @@ class CloudinaryService {
   }
 }
 
-export default new CloudinaryService();
