@@ -2,7 +2,13 @@ import "dotenv/config";
 import { Redis } from "@upstash/redis";
 import { pathToFileURL } from "url";
 
-export class RedisService {
+export interface RedisService {
+    set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
+    get<T>(key: string): Promise<T | null>;
+    del(key: string): Promise<void>;
+}   
+
+export class RedisServiceImpl implements RedisService {
     private readonly client: Redis;
 
     constructor() {
@@ -35,7 +41,7 @@ export class RedisService {
     }
 }
 
-export const redisService = new RedisService();
+export const redisService = new RedisServiceImpl();
 
 const currentFileArg = process.argv[1];
 if (currentFileArg && import.meta.url === pathToFileURL(currentFileArg).href) {

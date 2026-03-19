@@ -126,10 +126,7 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     async followUser(followerId: string, followingId: string): Promise<FollowEntity> {
-        // Business rule: a user cannot follow themselves.
-        if (followerId.trim() === followingId.trim()) {
-            throw new Error('User cannot follow themselves');
-        }
+
         // Keep behavior deterministic instead of relying on unique-constraint errors.
         const existingFollow = await prisma.follow.findUnique({
             where: {
@@ -152,10 +149,7 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     async unfollowUser(followerId: string, followingId: string): Promise<void> {
-        // Keep symmetry with followUser rule.
-        if (followerId.trim() === followingId.trim()) {
-            throw new Error('User cannot unfollow themselves');
-        }
+
         const existingFollow = await prisma.follow.findUnique({
             where: {
                 follower_id_following_id: {

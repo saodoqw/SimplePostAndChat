@@ -1,12 +1,16 @@
 import "dotenv/config";
 import path from "node:path";
-import cloudinaryService from "../cloudinary/cloudinary.service.js";
+import { readFile } from "node:fs/promises";
+import { CloudinaryServiceImpl } from "../cloudinary/cloudinary.service.js";
+
+const cloudinaryService = new CloudinaryServiceImpl();
 
 async function main() {
 //   const imagePath = path.resolve("src/infrastructure/imageStorage/test/test.jpg");
+//   const imageBuffer = await readFile(imagePath);
 
 //   const uploaded = await cloudinaryService.uploadImage(
-//     imagePath,
+//     imageBuffer,
 //     "simple-post-and-chat/test"
 //   );
 //   console.log("Uploaded:", uploaded);
@@ -17,9 +21,10 @@ testVideo();
 }
 const testVideo = async () => {
   const videoPath = path.resolve("src/infrastructure/imageStorage/test/[Vietsub][AVM] Koe no katachi - Có một người tôi yêu.mp4");
+  const videoBuffer = await readFile(videoPath);
 
   const uploaded = await cloudinaryService.uploadVideo(
-    videoPath,
+    videoBuffer,
     "simple-post-and-chat/test"
   );
   console.log("Uploaded:", uploaded);

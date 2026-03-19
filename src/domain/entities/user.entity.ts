@@ -53,7 +53,7 @@ export class UserEntity {
     static validateForCreation(
         username: string,
         email: string,
-        passwordHash: string,
+        password: string,
         bio?: string | null): void {
         const normalizedUsername = username.trim();
         const normalizedEmail = email.trim();
@@ -72,8 +72,8 @@ export class UserEntity {
         if (!EMAIL_REGEX.test(normalizedEmail)) {
             throw new UserEntityValidationError("email is invalid");
         }
-        if (!passwordHash) {
-            throw new UserEntityValidationError("passwordHash is required");
+        if (!password) {
+            throw new UserEntityValidationError("password is required");
         }
         if (normalizedBio && normalizedBio.length > USER_BIO_MAX_LENGTH) {
             throw new UserEntityValidationError(
