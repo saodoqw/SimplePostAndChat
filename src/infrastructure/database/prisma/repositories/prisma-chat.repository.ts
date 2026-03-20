@@ -70,7 +70,7 @@ class MessageMediaEntityMapper {
     }
 }
 
-export class PrismaChatRepository implements ChatRepository {
+ class PrismaChatRepository implements ChatRepository {
 
     async createConversation(input: CreateConversationRepositoryInput)
         : Promise<ConversationEntity> {

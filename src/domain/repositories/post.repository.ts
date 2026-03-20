@@ -95,7 +95,7 @@ export interface PostRepository {
 
     //Post create & update with media (images/videos)
     createPostWithMedia(data: CreatePostWithMediaRepositoryInput): Promise<PostWithMediaRepositoryResult>;
-    updatePostWithMedia(postId: string, data: UpdatePostWithMediaRepositoryInput): Promise<PostWithMediaRepositoryResult>;
+    // updatePostWithMedia(postId: string, data: UpdatePostWithMediaRepositoryInput): Promise<PostWithMediaRepositoryResult>;
 
     // Find Posts
     findById(postId: string): Promise<PostWithMediaRepositoryResult | null>;
@@ -110,9 +110,10 @@ export interface PostRepository {
 
     // Sub-domain: PostComment (add/retrieve/remove comments)
     findCommentCount(postId: string): Promise<number>;
+    findCommentById(commentId: string): Promise<CommentEntity | null>;
     createComment(data: CreatePostCommentRepositoryInput): Promise<CommentEntity>;
     createCommentWithMedia(data: CreatePostCommentWithMediaRepositoryInput): Promise<PostCommentWithMediaRepositoryResult>;
-    findCommentsFromPost(query: FindPostComment): Promise<FindPostCommentsResult>;
+    displayCommentsFromPost(query: FindPostComment): Promise<FindPostCommentsResult>;
     deleteComment(commentId: string): Promise<void>;
 
 }

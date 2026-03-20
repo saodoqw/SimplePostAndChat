@@ -8,7 +8,7 @@ const IMAGE_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const VIDEO_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const MAX_IMAGE_FILES = 10;
 const memoryStorage = multer.memoryStorage();
-
+// Helper function to create file filter for multer
 const createFileFilter = (
     allowedTypes: string[],
     errorMessage: string
@@ -26,7 +26,7 @@ const createFileFilter = (
         cb(new Error(errorMessage));
     };
 };
-
+// Multer upload instances for different file types
 const avatarUpload = multer({
     storage: memoryStorage,
     fileFilter: createFileFilter(ALLOWED_IMAGE_TYPES, 'Only image files are allowed for avatar upload'),

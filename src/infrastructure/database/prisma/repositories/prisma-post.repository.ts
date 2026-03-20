@@ -147,52 +147,52 @@ export class PrismaPostRepository implements PostRepository {
         return transactionResult;
     }
 
-    async updatePostWithMedia(
-        postId: string,
-        data: UpdatePostWithMediaRepositoryInput
-    ): Promise<PostWithMediaRepositoryResult> {
-        return prisma.$transaction(async (tx) => {
-            const existingRecord = await tx.post.findUnique({
-                where: { id: postId },
-            });
+    // async updatePostWithMedia(
+    //     postId: string,
+    //     data: UpdatePostWithMediaRepositoryInput
+    // ): Promise<PostWithMediaRepositoryResult> {
+    //     return prisma.$transaction(async (tx) => {
+    //         const existingRecord = await tx.post.findUnique({
+    //             where: { id: postId },
+    //         });
 
-            if (!existingRecord) {
-                throw new Error("Post not found");
-            }
+    //         if (!existingRecord) {
+    //             throw new Error("Post not found");
+    //         }
 
-            const postRecord = await tx.post.update({
-                where: { id: postId },
-                data: {
-                    content: data.content,
-                },
-            });
+    //         const postRecord = await tx.post.update({
+    //             where: { id: postId },
+    //             data: {
+    //                 content: data.content,
+    //             },
+    //         });
 
-            await tx.postMedia.deleteMany({
-                where: { post_id: postId },
-            });
+    //         await tx.postMedia.deleteMany({
+    //             where: { post_id: postId },
+    //         });
 
-            if (data.media.length) {
-                await tx.postMedia.createMany({
-                    data: data.media.map((item) => ({
-                        post_id: postId,
-                        media_url: item.mediaUrl,
-                        media_type: item.mediaType,
-                        public_id: item.publicId,
-                    })),
-                });
-            }
+    //         if (data.media.length) {
+    //             await tx.postMedia.createMany({
+    //                 data: data.media.map((item) => ({
+    //                     post_id: postId,
+    //                     media_url: item.mediaUrl,
+    //                     media_type: item.mediaType,
+    //                     public_id: item.publicId,
+    //                 })),
+    //             });
+    //         }
 
-            const mediaRecords = await tx.postMedia.findMany({
-                where: { post_id: postId },
-                orderBy: { created_at: "asc" },
-            });
+    //         const mediaRecords = await tx.postMedia.findMany({
+    //             where: { post_id: postId },
+    //             orderBy: { created_at: "asc" },
+    //         });
 
-            return {
-                post: PostEntityMapper.toDomain(postRecord),
-                media: mediaRecords.map((record) => PostMediaEntityMapper.toDomain(record)),
-            };
-        });
-    }
+    //         return {
+    //             post: PostEntityMapper.toDomain(postRecord),
+    //             media: mediaRecords.map((record) => PostMediaEntityMapper.toDomain(record)),
+    //         };
+    //     });
+    // }
 
     async findById(postId: string): Promise<PostWithMediaRepositoryResult | null> {
         const record = await prisma.post.findUnique({
@@ -371,7 +371,7 @@ export class PrismaPostRepository implements PostRepository {
         });
     }
 
-    async findCommentsFromPost(query: FindPostComment): Promise<FindPostCommentsResult> {
+    async displayCommentsFromPost(query: FindPostComment): Promise<FindPostCommentsResult> {
         await this.ensurePostExists(query.postId);
         const limit = this.normalizeLimit(query.limit);
         const sortBy = query.sortBy ?? DEFAULT_COMMENT_SORT_BY;
@@ -404,6 +404,12 @@ export class PrismaPostRepository implements PostRepository {
             limit,
             sortBy,
         };
+    }
+    async findCommentById(commentId: string): Promise<CommentEntity | null> {
+        const record = await prisma.comment.findUnique({
+            where: { id: commentId },
+        });
+        return record ? CommentEntityMapper.toDomain(record) : null;
     }
 
     async deleteComment(commentId: string): Promise<void> {

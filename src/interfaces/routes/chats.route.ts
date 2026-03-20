@@ -1,2 +1,2 @@
 import { Router } from "express";
-import { PrismaChatRepository } from "../../infrastructure/database/prisma/repositories/prisma-chat.repository.js";
+import {  } from "../../infrastructure/database/prisma/repositories/prisma-chat.repository.js";

@@ -2,7 +2,8 @@ import { type NextFunction, type Request, type Response } from "express";
 import {
     CreatePostUseCase,
     CreatePostValidationError,
-} from "../../usecases/posts/create-post.usecase.js";
+} from "../../usecases/posts/post.usecase.js";
+import { type AuthenticatedRequest } from "../middlewares/auth.middleware.js";
 
 export class PostController {
     constructor(private readonly createPostUseCase: CreatePostUseCase) {}
@@ -10,15 +11,22 @@ export class PostController {
     create = async (
         req: Request,
         res: Response,
-        next: NextFunction
+        next: NextFunction,
     ): Promise<void> => {
         try {
-            const authorId = this.getBodyString(req.body?.authorId);
-            const content = this.getBodyString(req.body?.content);
+            const authUser = (req as AuthenticatedRequest).authUser;
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
 
-            const createdPost = await this.createPostUseCase.execute({
-                authorId,
+            const content = this.getBodyString(req.body?.content);
+            const imageBuffer = this.getImageBuffers(req);
+
+            const createdPost = await this.createPostUseCase.createPost({
+                authorId: authUser.userId,
                 content,
+                imageBuffer,
             });
 
             res.status(201).json({ data: createdPost });
@@ -32,7 +40,32 @@ export class PostController {
         }
     };
 
+
     private getBodyString(value: unknown): string {
         return typeof value === "string" ? value : "";
+    }
+
+    private getImageBuffers(req: Request): Buffer[] | undefined {
+        if (!req.files) {
+            return undefined;
+        }
+
+        if (Array.isArray(req.files)) {
+            const buffers = req.files
+                .map((file) => file.buffer)
+                .filter((buffer) => buffer.length > 0);
+            return buffers.length ? buffers : undefined;
+        }
+
+        const imageFiles = req.files.images;
+        if (!Array.isArray(imageFiles)) {
+            return undefined;
+        }
+
+        const buffers = imageFiles
+            .map((file) => file.buffer)
+            .filter((buffer) => buffer.length > 0);
+
+        return buffers.length ? buffers : undefined;
     }
 }

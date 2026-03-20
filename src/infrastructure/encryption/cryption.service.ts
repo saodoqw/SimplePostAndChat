@@ -10,7 +10,7 @@ export interface CryptionService {
     verifyRegistrationToken(token: string, expectedToken: string): boolean;
 }
 
-export class BcryptCryptionService implements CryptionService {
+ class BcryptCryptionService implements CryptionService {
     constructor(private readonly saltRounds: number = DEFAULT_SALT_ROUNDS) {}
 
     async hashPassword(plainPassword: string): Promise<string> {

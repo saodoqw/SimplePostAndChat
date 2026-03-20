@@ -23,8 +23,6 @@ const userUseCase = new UserUseCase(
 // Controller where we handle the request and response
 const userController = new UserController(userUseCase);
 
-userRoutes.post("/", userController.create);
-userRoutes.post("/register", userController.register);
 // userRoutes.get("/:id", userController.verifyRegistrationToken);
 // userRoutes.get("/:email", userController.getByEmail);
 userRoutes.patch("/:id/avatar", uploadAvatarMiddleware, userController.updateAvatar);

@@ -51,11 +51,11 @@ export class CreateUserConflictError extends Error {
 
 export class UserUseCase {
     constructor(
-        private userRepository: UserRepository,
-        private cryptionService: CryptionService,
-        private redisService: RedisService,
-        private sendGridService: SendGridService,
-        private cloudinaryService: CloudinaryService,
+        private readonly userRepository: UserRepository,
+        private readonly cryptionService: CryptionService,
+        private readonly redisService: RedisService,
+        private readonly sendGridService: SendGridService,
+        private readonly cloudinaryService: CloudinaryService,
     ) { }
 
     // This method creates a temporary user in Redis with a 15-minute expiration.

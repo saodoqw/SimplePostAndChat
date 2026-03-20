@@ -1,0 +1,112 @@
+import jwt from "jsonwebtoken";
+
+const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = "15m";
+const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = "7d";
+
+export interface AccessTokenPayload {
+    userId: string;
+    username: string;
+    email: string;
+}
+
+type TokenType = "access" | "refresh";
+
+interface SignedTokenPayload extends AccessTokenPayload {
+    tokenType: TokenType;
+}
+
+export interface JwtService {
+  generateAccessToken(payload: AccessTokenPayload): string;
+  generateRefreshToken(payload: AccessTokenPayload): string;
+
+  verifyAccessToken(token: string): AccessTokenPayload;
+  verifyRefreshToken(token: string): AccessTokenPayload;
+}
+
+ class TokenServiceIml implements JwtService {
+    private readonly accessTokenExpiresIn: jwt.SignOptions["expiresIn"];
+    private readonly refreshTokenExpiresIn: jwt.SignOptions["expiresIn"];
+
+    constructor(
+        private readonly jwtSecret: string,
+        accessTokenExpiresIn: jwt.SignOptions["expiresIn"] =
+            (process.env.JWT_ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"] | undefined) ??
+            DEFAULT_ACCESS_TOKEN_EXPIRES_IN,
+        refreshTokenExpiresIn: jwt.SignOptions["expiresIn"] =
+            (process.env.JWT_REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"] | undefined) ??
+            DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
+    ) {
+        if (!jwtSecret) {
+            throw new Error("JWT secret is not configured");
+        }
+
+        this.accessTokenExpiresIn = accessTokenExpiresIn;
+        this.refreshTokenExpiresIn = refreshTokenExpiresIn;
+    }
+
+    generateAccessToken(payload: AccessTokenPayload): string {
+        return this.signToken(payload, "access", this.accessTokenExpiresIn);
+    }
+
+    generateRefreshToken(payload: AccessTokenPayload): string {
+        return this.signToken(payload, "refresh", this.refreshTokenExpiresIn);
+    }
+
+    verifyAccessToken(token: string): AccessTokenPayload {
+        return this.verifyToken(token, "access");
+    }
+
+    verifyRefreshToken(token: string): AccessTokenPayload {
+        return this.verifyToken(token, "refresh");
+    }
+
+    private signToken(
+        payload: AccessTokenPayload,
+        tokenType: TokenType,
+        expiresIn: jwt.SignOptions["expiresIn"],
+    ): string {
+        return jwt.sign({ ...payload, tokenType }, this.jwtSecret, { expiresIn });
+    }
+
+    private verifyToken(token: string, expectedType: TokenType): AccessTokenPayload {
+        const decoded = jwt.verify(token, this.jwtSecret);
+
+        if (typeof decoded === "string") {
+            throw new Error("Invalid token payload");
+        }
+
+        const parsedPayload = this.parsePayload(decoded);
+
+        if (parsedPayload.tokenType !== expectedType) {
+            throw new Error("Invalid token type");
+        }
+
+        return {
+            userId: parsedPayload.userId,
+            username: parsedPayload.username,
+            email: parsedPayload.email,
+        };
+    }
+
+    private parsePayload(payload: jwt.JwtPayload): SignedTokenPayload {
+        const { userId, username, email, tokenType } = payload;
+
+        if (
+            typeof userId !== "string" ||
+            typeof username !== "string" ||
+            typeof email !== "string" ||
+            (tokenType !== "access" && tokenType !== "refresh")
+        ) {
+            throw new Error("Invalid token payload");
+        }
+
+        return {
+            userId,
+            username,
+            email,
+            tokenType,
+        };
+    }
+}
+
+export const tokenService: JwtService = new TokenServiceIml(process.env.JWT_SECRET as string);

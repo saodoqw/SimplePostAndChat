@@ -6,9 +6,9 @@ export interface RedisService {
     set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
     get<T>(key: string): Promise<T | null>;
     del(key: string): Promise<void>;
-}   
+}
 
-export class RedisServiceImpl implements RedisService {
+class RedisServiceImpl implements RedisService {
     private readonly client: Redis;
 
     constructor() {
