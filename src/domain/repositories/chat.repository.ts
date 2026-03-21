@@ -69,7 +69,7 @@ export interface FindMessagesQuery {
 	limit: number;
 	sortBy?: MessageSortBy;
 	sortOrder?: SortOrder;
-	search: string;
+	search?: string;
 	direction?: MessagePaginationDirection;
 }
 

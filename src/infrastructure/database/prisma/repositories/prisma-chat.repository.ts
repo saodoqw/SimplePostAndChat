@@ -70,7 +70,7 @@ class MessageMediaEntityMapper {
     }
 }
 
- class PrismaChatRepository implements ChatRepository {
+export class PrismaChatRepository implements ChatRepository {
 
     async createConversation(input: CreateConversationRepositoryInput)
         : Promise<ConversationEntity> {
@@ -380,10 +380,12 @@ class MessageMediaEntityMapper {
             include: {
                 media: true,
             },
-            orderBy: [{ created_at: "asc" }, { id: "asc" }],
+            orderBy: [{ created_at: "desc" }, { id: "desc" }],
             take: 20,
         });
-        return messageRecords.map((messageRecord) => ({
+
+        const orderedRecords = [...messageRecords].reverse();
+        return orderedRecords.map((messageRecord) => ({
             message: MessageEntityMapper.toEntity(messageRecord),
             media: messageRecord.media.map((mediaRecord) => MessageMediaEntityMapper.toEntity(mediaRecord)),
         }));
@@ -393,7 +395,7 @@ class MessageMediaEntityMapper {
         const sortBy = query.sortBy ?? DEFAULT_MESSAGE_SORT_BY;
         const sortOrder = query.sortOrder ?? DEFAULT_MESSAGE_SORTED;
         const direction = query.direction ?? "up";
-        const normalizedSearch = query.search.trim();
+        const normalizedSearch = query.search?.trim() ?? "";
 
         const conversation = await prisma.conversation.findUnique({
             where: { id: query.conversationId },
@@ -401,17 +403,17 @@ class MessageMediaEntityMapper {
         if (!conversation) {
             throw new Error("Conversation not found.");
         }
-        if (normalizedSearch === "") {
-            throw new Error("Search query cannot be empty.");
-        }
-
         const messageRecords = await prisma.message.findMany({
             where: {
                 conversation_id: query.conversationId,
-                content: {
-                    contains: normalizedSearch,
-                    mode: "insensitive", // Case-insensitive search
-                },
+                ...(normalizedSearch
+                    ? {
+                        content: {
+                            contains: normalizedSearch,
+                            mode: "insensitive",
+                        }
+                    }
+                    : {}),
                 is_deleted: false,
             },
             include: {
