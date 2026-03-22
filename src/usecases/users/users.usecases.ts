@@ -3,10 +3,10 @@ import {
     UserEntityValidationError,
 } from '../../domain/entities/user.entity.js';
 import { type UserRepository } from '../../domain/repositories/user.repository.js';
-import {type SendGridService } from '../../infrastructure/EmailSender/sendGrid.service.js';
+import { type SendGridService } from '../../infrastructure/EmailSender/sendGrid.service.js';
 import { type CryptionService } from '../../infrastructure/encryption/cryption.service.js';
 import { type RedisService } from '../../infrastructure/redisService/redis.service.js';
-import {type CloudinaryService } from '../../infrastructure/imageStorage/cloudinary/cloudinary.service.js';
+import { type CloudinaryService } from '../../infrastructure/imageStorage/cloudinary/cloudinary.service.js';
 
 
 export interface CreateUserUseCaseInput {
@@ -48,8 +48,16 @@ export class CreateUserConflictError extends Error {
         this.name = 'CreateUserConflictError';
     }
 }
-
+export interface PublicUser {
+    id: string;
+    username: string;
+    email: string;
+    avatarUrl: string | null;
+    bio: string | null;
+}
 export class UserUseCase {
+
+    
     constructor(
         private readonly userRepository: UserRepository,
         private readonly cryptionService: CryptionService,
@@ -57,6 +65,15 @@ export class UserUseCase {
         private readonly sendGridService: SendGridService,
         private readonly cloudinaryService: CloudinaryService,
     ) { }
+
+    async searchUsers(query: string) {
+        const trimmedQuery = query.trim();
+        if (!trimmedQuery) {
+            return [];
+        }
+        const users = await this.userRepository.searchUsersByUsernameOrEmail(trimmedQuery);
+        return users;
+    }
 
     // This method creates a temporary user in Redis with a 15-minute expiration.
     //User needs to verify their email within 15 minutes,
@@ -89,7 +106,7 @@ export class UserUseCase {
         }
 
         const passwordHash = await this.cryptionService.hashPassword(password);
-        const registrationToken = this.cryptionService.createRegistrationToken();
+        const registrationToken = this.cryptionService.createToken();
         const tempUser: UserCreateEntity = {
             username,
             email,
@@ -98,7 +115,7 @@ export class UserUseCase {
             isVerified: false,
         };
         await this.redisService.set(`tempUser:${email}`, tempUser, 60 * 30); // 30 minutes expiration
-        
+
         await this.sendGridService.sendVerificationEmailWithTemplate(email, registrationToken);
     }
     //Verify user and save to database, then delete the temporary user from Redis
@@ -107,7 +124,7 @@ export class UserUseCase {
         if (!tempUser) {
             throw new CreateUserValidationError('Invalid or expired registration token');
         }
-        if (!this.cryptionService.verifyRegistrationToken(token, tempUser.registrationToken)) {
+        if (!this.cryptionService.verifyToken(token, tempUser.registrationToken)) {
             throw new CreateUserValidationError('Invalid registration token');
         }
         await this.userRepository.create({
@@ -131,7 +148,7 @@ export class UserUseCase {
         avatarFile?: AvatarUploadInput
     ): Promise<UserEntity | null> {
         const existingUser = await this.userRepository.findById(id);
-        
+
         if (!existingUser) {
             return null;
         }
@@ -169,7 +186,33 @@ export class UserUseCase {
             throw error;
         }
     }
+    //create temp request for changing password, send email with token, verify token and change password
+    async requestPasswordReset(email: string): Promise<void> {
+        const user = await this.userRepository.findByEmail(email);
+        if (!user) {
+            throw new Error("User not found");
+            return; 
+        }
+        const resetToken = this.cryptionService.createToken();
+        await this.redisService.set(`passwordReset:${email}`, resetToken, 60 * 15); // 15 minutes expiration
+        await this.sendGridService.sendPasswordResetEmailWithTemplate(email, resetToken);
+    }
 
+    async resetPassword(email: string, token: string, newPassword: string): Promise<void> {
+        const storedToken = await this.redisService.get<string>(`passwordReset:${email}`);
+        
+        if (!storedToken || !this.cryptionService.verifyToken(token, storedToken)) {
+            throw new Error("Invalid or expired password reset token");
+        }
+        const user = await this.userRepository.findByEmail(email);
+        if (!user) {
+            throw new Error("User not found");
+            return;
+        }
+        const newPasswordHash = await this.cryptionService.hashPassword(newPassword);
+        await this.userRepository.update(user.id, { passwordHash: newPasswordHash });
+        await this.redisService.del(`passwordReset:${email}`);
+    }
     // Follow/unfollow users
     async followUser(followerId: string, followingId: string): Promise<void> {
         if (followerId === followingId) {
@@ -178,7 +221,7 @@ export class UserUseCase {
         await this.userRepository.followUser(followerId, followingId);
     }
     async unfollowUser(followerId: string, followingId: string): Promise<void> {
-            if (followerId === followingId) {
+        if (followerId === followingId) {
             throw new Error("Users cannot unfollow themselves");
         }
         await this.userRepository.unfollowUser(followerId, followingId);
@@ -189,5 +232,61 @@ export class UserUseCase {
     async isbothFollowing(userId1: string, userId2: string): Promise<boolean> {
         return this.userRepository.isbothFollowing(userId1, userId2);
     }
+    async getFollowersCount(userId: string): Promise<number> {
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        const existingUser = await this.userRepository.findById(userId);
+        if (!existingUser) {
+            throw new Error("User not found");
+        }
+        const followers = await this.userRepository.getFollowers(userId);
+        return followers.length;
+    }
+    async getFollowingCount(userId: string): Promise<number> {
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        const existingUser = await this.userRepository.findById(userId);
+        if (!existingUser) {
+            throw new Error("User not found");
+        }
+        const following = await this.userRepository.getFollowing(userId);
+        return following.length;
+    }
+    async getFollowers(userId: string): Promise<PublicUser[]> {
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        const existingUser = await this.userRepository.findById(userId);
+        if (!existingUser) {
+            throw new Error("User not found");
+        }
+        const followers = await this.userRepository.getFollowers(userId);
+        return followers.map((user) => ({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+            bio: user.bio,
+        }));
 
+    }
+    async getFollowing(userId: string): Promise<PublicUser[]> {
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        const existingUser = await this.userRepository.findById(userId);
+        if (!existingUser) {
+            throw new Error("User not found");
+        }
+        const following = await this.userRepository.getFollowing(userId);
+        return following.map((user) => ({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+            bio: user.bio,
+        }));
+    }
 }

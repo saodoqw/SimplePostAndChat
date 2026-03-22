@@ -69,7 +69,7 @@ export class CreatePostValidationError extends Error {
     }
 }
 
-export class CreatePostUseCase {
+export class PostUseCase {
     constructor(
         private readonly postRepository: PostRepository,
         private readonly cloudinaryService: CloudinaryService,

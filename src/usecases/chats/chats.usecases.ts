@@ -17,7 +17,7 @@ export class ChatUseCase {
         private readonly userRepository: UserRepository,
     ) { }
 
-    async createChat(userId: string, participantIds: string[], groupName?: string) {
+    async createGroupChat(userId: string, participantIds: string[], groupName?: string) {
         const normalizedUserId = userId.trim();
         if (!normalizedUserId) {
             throw new Error("User ID is required");
@@ -36,22 +36,59 @@ export class ChatUseCase {
         await this.ensureUsersExist(allParticipantIds);
 
         const isGroup = normalizedParticipantIds.length > 1;
+        if (!isGroup) {
+            throw new Error("Use findOrCreateDirectConversation for direct chats");
+        }
         const input: CreateConversationRepositoryInput = {
             name: isGroup
                 ? this.normalizeGroupName(groupName)
                 : DEFAULT_DIRECT_CHAT_NAME,
             userIds: allParticipantIds,
             isGroup,
-            ...(isGroup ? { creatorUserId: normalizedUserId } : {}),
+            creatorUserId: normalizedUserId,
         };
 
         return this.chatRepository.createConversation(input);
     }
-    async updateGroupName(conversationId: string, newName: string) {
+
+    async findOrCreateDirectConversation(userId: string, recipientId: string) {
+        const normalizedUserId = userId.trim();
+        if (!normalizedUserId) {
+            throw new Error("User ID is required");
+        }
+        const normalizedRecipientId = recipientId.trim();
+        if (!normalizedRecipientId) {
+            throw new Error("Recipient ID is required");
+        }
+
+        if (normalizedUserId === normalizedRecipientId) {
+            throw new Error("Cannot create direct conversation with yourself");
+        }
+
+        await this.ensureUsersExist([normalizedUserId, normalizedRecipientId]);
+
+        // Try to find existing direct conversation, otherwise create new one
+        const existingConversation = await this.chatRepository.findDirectConversation(normalizedUserId, normalizedRecipientId);
+        if (existingConversation) {
+            return existingConversation;
+        }
+
+        const input: CreateConversationRepositoryInput = {
+            name: DEFAULT_DIRECT_CHAT_NAME,
+            userIds: [normalizedUserId, normalizedRecipientId],
+            isGroup: false,
+        };
+
+        return this.chatRepository.createConversation(input);
+    }
+
+    async updateGroupName(conversationId: string, requesterUserId: string, newName: string) {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+        await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
+
         const normalizedNewName = newName.trim();
         if (!normalizedNewName) {
             throw new Error("New group name is required");
@@ -59,11 +96,13 @@ export class ChatUseCase {
 
         return this.chatRepository.updateConversation(normalizedConversationId, { name: normalizedNewName });
     }
-    async deleteConversation(conversationId: string) {
+    async deleteConversation(conversationId: string, requesterUserId: string) {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+        await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
+
         return this.chatRepository.deleteConversation(normalizedConversationId);
     }
 
@@ -83,7 +122,7 @@ export class ChatUseCase {
             sortOrder: "desc",
         });
     }
-    async displayConversationDetails(conversationId: string) {
+    async displayConversationDetails(conversationId: string, requesterUserId: string) {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
@@ -92,14 +131,19 @@ export class ChatUseCase {
         if (!conversationWithUsers) {
             throw new Error("Conversation not found");
         }
+        if (!conversationWithUsers.users.some((user) => user.userId === requesterUserId)) {
+            throw new Error("Forbidden: user is not in conversation");
+        }
         return conversationWithUsers;
     }
 
-    async addParticipants(conversationId: string, participantIds: string[]) {
+    async addParticipants(conversationId: string, requesterUserId: string, participantIds: string[]) {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+        await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
+
         const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
         if (!normalizedParticipantIds.length) {
             throw new Error("At least one participant ID is required");
@@ -107,11 +151,14 @@ export class ChatUseCase {
         await this.ensureUsersExist(normalizedParticipantIds);
         return this.chatRepository.addUsersToConversation(normalizedConversationId, normalizedParticipantIds);
     }
-    async removeParticipants(conversationId: string, participantIds: string[]) {
+
+    async removeParticipants(conversationId: string, requesterUserId: string, participantIds: string[]) {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+        await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
+
         const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
         if (!normalizedParticipantIds.length) {
             throw new Error("At least one participant ID is required");
@@ -130,6 +177,51 @@ export class ChatUseCase {
         }
         return this.chatRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
     }
+    async leaveConversation(conversationId: string, userId: string) {
+        const normalizedConversationId = conversationId.trim();
+        if (!normalizedConversationId) {
+            throw new Error("Conversation ID is required");
+        }
+        const normalizedUserId = userId.trim();
+        if (!normalizedUserId) {
+            throw new Error("User ID is required");
+        }
+        const isMember = await this.chatRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
+        if (!isMember) {
+            throw new Error("Forbidden: user is not in conversation");
+        }
+        const isAdmin = await this.chatRepository.isAdmin(normalizedConversationId, normalizedUserId);
+        if (isAdmin) {
+            throw new Error("Group admins cannot leave the conversation. Please transfer admin role before leaving.");
+        }
+        return this.chatRepository.leaveConversation(normalizedConversationId, normalizedUserId);
+    }
+    async transferGroupAdmin(conversationId: string, requesterUserId: string, newAdminUserId: string) {
+        const normalizedConversationId = conversationId.trim();
+        if (!normalizedConversationId) {
+            throw new Error("Conversation ID is required");
+        }
+        const normalizedRequesterUserId = requesterUserId.trim();
+        if (!normalizedRequesterUserId) {
+            throw new Error("Requester ID is required");
+        }
+        const normalizedNewAdminUserId = newAdminUserId.trim();
+        if (!normalizedNewAdminUserId) {
+            throw new Error("New admin ID is required");
+        }
+        await this.ensureRequesterIsGroupAdmin(normalizedConversationId, normalizedRequesterUserId);
+        const conversationWithUsers = await this.chatRepository.findConversationWithUsers(normalizedConversationId);
+        if (!conversationWithUsers.users.some((user) => user.userId === normalizedNewAdminUserId)) {
+            throw new Error("New admin user must be a member of the conversation");
+        }
+        await this.chatRepository.transferAdmin(
+            normalizedConversationId,
+            normalizedRequesterUserId,
+            normalizedNewAdminUserId,
+        );
+        return;
+    }
+
 
     async sendMessage(
         conversationId: string,
@@ -183,8 +275,14 @@ export class ChatUseCase {
             content: normalizedContent || null,
         });
     }
-    async updateMessage(messageId: string, content: string) {
+    async updateMessage(conversationId: string, userId: string, messageId: string, content: string) {
         const normalizedMessageId = messageId.trim();
+        const normalizedConversationId = conversationId.trim();
+        const normalizedUserId = userId.trim();
+        const isMember = await this.chatRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
+        if (!isMember) {
+            throw new Error("Forbidden: user is not in conversation");
+        }
         if (!normalizedMessageId) {
             throw new Error("Message ID is required");
         }
@@ -192,23 +290,53 @@ export class ChatUseCase {
         if (!normalizedContent) {
             throw new Error("Message content is required");
         }
+
+        const existingMessage = await this.chatRepository.findMessageById(normalizedMessageId);
+        if (!existingMessage || existingMessage.isDeleted) {
+            throw new Error("Message not found");
+        }
+        if (existingMessage.conversationId !== normalizedConversationId) {
+            throw new Error("Message does not belong to this conversation");
+        }
+        if (existingMessage.senderId !== normalizedUserId) {
+            throw new Error("Forbidden: only message owner can update this message");
+        }
+
         return this.chatRepository.updateMessage(normalizedMessageId, { content: normalizedContent });
     }
 
-    async deleteMessage(messageId: string) {
+    async deleteMessage(conversationId: string, userId: string, messageId: string) {
         const normalizedMessageId = messageId.trim();
+        const normalizedConversationId = conversationId.trim();
+        const normalizedUserId = userId.trim();
+        const isMember = await this.chatRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
+        if (!isMember) {
+            throw new Error("Forbidden: user is not in conversation");
+        }
         if (!normalizedMessageId) {
             throw new Error("Message ID is required");
         }
+
+        const existingMessage = await this.chatRepository.findMessageById(normalizedMessageId);
+        if (!existingMessage || existingMessage.isDeleted) {
+            throw new Error("Message not found");
+        }
+        if (existingMessage.conversationId !== normalizedConversationId) {
+            throw new Error("Message does not belong to this conversation");
+        }
+        if (existingMessage.senderId !== normalizedUserId) {
+            throw new Error("Forbidden: only message owner can delete this message");
+        }
+
         return this.chatRepository.deleteMessage(normalizedMessageId);
     }
-    async displayMessages(conversationId: string) {
-        const normalizedConversationId = conversationId.trim();
-        if (!normalizedConversationId) {
-            throw new Error("Conversation ID is required");
-        }
-        return this.chatRepository.displayMessages(normalizedConversationId);
-    }
+    // async displayMessages(conversationId: string) {
+    //     const normalizedConversationId = conversationId.trim();
+    //     if (!normalizedConversationId) {
+    //         throw new Error("Conversation ID is required");
+    //     }
+    //     return this.chatRepository.displayMessages(normalizedConversationId);
+    // }
     async paginateMessages(conversationId: string, limit: number, cursor?: string, search?: string, direction?: "up" | "down") {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
@@ -261,6 +389,28 @@ export class ChatUseCase {
         }
 
         return normalizedName;
+    }
+
+    private async ensureRequesterIsGroupAdmin(conversationId: string, requesterUserId: string): Promise<void> {
+        const normalizedRequesterUserId = requesterUserId.trim();
+        if (!normalizedRequesterUserId) {
+            throw new Error("Requester user ID is required");
+        }
+
+        const conversationWithUsers = await this.chatRepository.findConversationWithUsers(conversationId);
+        if (!conversationWithUsers.conversation.isGroup) {
+            throw new Error("Only group conversations support this action");
+        }
+
+        const requesterMembership = conversationWithUsers.users.find(
+            (conversationUser) => conversationUser.userId === normalizedRequesterUserId,
+        );
+        if (!requesterMembership) {
+            throw new Error("Forbidden: requester is not a member of this conversation");
+        }
+        if (!requesterMembership.admin) {
+            throw new Error("Forbidden: admin permission is required");
+        }
     }
 
     private async ensureUsersExist(userIds: string[]): Promise<void> {

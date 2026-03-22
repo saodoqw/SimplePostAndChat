@@ -16,6 +16,7 @@ export interface UpdateUserRepositoryInput {
 }
 
 export interface UserRepository {
+    searchUsersByUsernameOrEmail(trimmedQuery: string): Promise<UserEntity[]>;
     create(data: CreateUserRepositoryInput): Promise<UserEntity>;
     findById(id: string): Promise<UserEntity | null>;
     findByEmail(email: string): Promise<UserEntity | null>;
@@ -28,4 +29,6 @@ export interface UserRepository {
     unfollowUser(followerId: string, followingId: string): Promise<void>;
     isFollowing(followerId: string, followingId: string): Promise<boolean>;
     isbothFollowing(userId1: string, userId2: string): Promise<boolean>;
+    getFollowers(userId: string): Promise<UserEntity[]>;
+    getFollowing(userId: string): Promise<UserEntity[]>;
 }

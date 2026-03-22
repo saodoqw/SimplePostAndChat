@@ -6,12 +6,14 @@ const DEFAULT_SALT_ROUNDS = 10;
 export interface CryptionService {
     hashPassword(plainPassword: string): Promise<string>;
     verifyPassword(plainPassword: string, passwordHash: string): Promise<boolean>;
-    createRegistrationToken(): string;
-    verifyRegistrationToken(token: string, expectedToken: string): boolean;
+    createToken(): string;
+    verifyToken(token: string, expectedToken: string): boolean;
+
 }
 
  class BcryptCryptionService implements CryptionService {
     constructor(private readonly saltRounds: number = DEFAULT_SALT_ROUNDS) {}
+
 
     async hashPassword(plainPassword: string): Promise<string> {
         return bcrypt.hash(plainPassword, this.saltRounds);
@@ -24,11 +26,11 @@ export interface CryptionService {
         return bcrypt.compare(plainPassword, passwordHash);
     }
 
-    createRegistrationToken(): string {
+    createToken(): string {
         return crypto.randomBytes(32).toString('hex');
     }
 
-    verifyRegistrationToken(token: string, expectedToken: string): boolean {
+    verifyToken(token: string, expectedToken: string): boolean {
         return token === expectedToken;
     }
 }
