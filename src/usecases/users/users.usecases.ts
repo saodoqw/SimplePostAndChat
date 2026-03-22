@@ -191,7 +191,6 @@ export class UserUseCase {
         const user = await this.userRepository.findByEmail(email);
         if (!user) {
             throw new Error("User not found");
-            return; 
         }
         const resetToken = this.cryptionService.createToken();
         await this.redisService.set(`passwordReset:${email}`, resetToken, 60 * 15); // 15 minutes expiration

@@ -132,10 +132,13 @@ export class PostUseCase {
         }
     }
 
-    async updatePost(postId: string, content: string): Promise<postDetails> {
+    async updatePost(postId: string, content: string, userId: string): Promise<postDetails> {
         const existingPost = await this.postRepository.findById(postId);
         if (!existingPost) {
             throw new Error("Post not found");
+        }
+        if (existingPost.post.author_id !== userId) {
+            throw new Error("Unauthorized: You can only update your own posts");
         }
 
         await this.postRepository.updateById(postId, { content });
@@ -150,10 +153,13 @@ export class PostUseCase {
         };
     }
 
-    async deletePost(postId: string): Promise<void> {
+    async deletePost(postId: string, userId: string): Promise<void> {
         const existingPost = await this.postRepository.findById(postId);
         if (!existingPost) {
             throw new Error("Post not found");
+        }
+        if (existingPost.post.author_id !== userId) {
+            throw new Error("Unauthorized: You can only delete your own posts");
         }
         await this.postRepository.deleteById(postId);
     }
@@ -337,10 +343,13 @@ export class PostUseCase {
             })),
         };
     }
-    async deleteComment(commentId: string): Promise<void> {
+    async deleteComment(commentId: string, userId: string): Promise<void> {
         const existingComment = await this.postRepository.findCommentById(commentId);
         if (!existingComment) {
             throw new Error("Comment not found");
+        }
+        if (existingComment.userId !== userId) {
+            throw new Error("Unauthorized: You can only delete your own comments");
         }
         await this.postRepository.deleteById(commentId);
     }

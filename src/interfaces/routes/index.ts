@@ -8,7 +8,7 @@ import authRoutes from "./auth.routes.js";
 import postRoutes from "./post.routes.js";
 import testRoute from "./test.routes.js";
 import userRoutes from "./users.routes.js";
-// import chatRoutes from "./chats.routes.js";
+import chatRoutes from "./chats.route.js";
 
 const AuthMiddleware = createAuthMiddleware(tokenService);
 
@@ -19,6 +19,6 @@ apiRoutes.use("/auth", authRoutes);
 apiRoutes.use("/posts", AuthMiddleware, postRoutes);
 apiRoutes.use("/tests", AuthMiddleware, testRoute);
 apiRoutes.use("/users", AuthMiddleware, userRoutes);
-// apiRoutes.use("/chats", AuthMiddleware, chatRoutes);
+apiRoutes.use("/chats", AuthMiddleware, chatRoutes);
 
 export default apiRoutes;

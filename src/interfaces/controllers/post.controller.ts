@@ -66,6 +66,7 @@ export class PostController {
             const updatedPost = await this.postUseCase.updatePost(
                 postId,
                 content,
+                authUser.userId,
             );
             res.status(200).json({ data: updatedPost });
         } catch (error) {
@@ -91,7 +92,7 @@ export class PostController {
                 res.status(401).json({ message: "Unauthorized" });
                 return;
             }
-            await this.postUseCase.deletePost(postId);
+            await this.postUseCase.deletePost(postId, authUser.userId);
             res.status(200).json({ message: "Post deleted successfully" });
         } catch (error) {
             res.status(400).json({ message: (error as Error).message });
@@ -322,7 +323,7 @@ export class PostController {
                 res.status(401).json({ message: "Unauthorized" });
                 return;
             }
-            await this.postUseCase.deleteComment(commentId);
+            await this.postUseCase.deleteComment(commentId, authUser.userId);
             res.status(200).json({ message: "Comment deleted successfully" });
         } catch (error) {
             res.status(400).json({ message: (error as Error).message });

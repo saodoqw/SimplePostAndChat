@@ -13,11 +13,11 @@ class RedisServiceImpl implements RedisService {
 
     constructor() {
         const url = process.env.UPSTASH_REDIS_REST_ENDPOINT;
-        const token = process.env.UPSTASH_REDIS_TOKKEN;
+        const token = process.env.UPSTASH_REDIS_TOKEN;
 
         if (!url || !token) {
             throw new Error(
-                "Missing Upstash credentials. Set UPSTASH_REDIS_REST_ENDPOINT and UPSTASH_REDIS_TOKKEN in environment variables."
+                "Missing Upstash credentials. Set UPSTASH_REDIS_REST_ENDPOINT and UPSTASH_REDIS_TOKEN in environment variables."
             );
         }
 

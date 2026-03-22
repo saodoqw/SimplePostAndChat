@@ -68,8 +68,13 @@ export interface SendGridService {
     }
     // Helper method to send email and log the result
     private async sendMessage(message: SendGridMessage, successPrefix: string): Promise<void> {
-        const response = await sgMail.send(message);
-        console.log(`${successPrefix}:`, response[0].statusCode);
+        try {
+            const response = await sgMail.send(message);
+            console.log(`${successPrefix}:`, response[0].statusCode);
+        } catch (error) {
+            console.error(`Failed to send email to ${message.to}:`, error);
+            throw new Error("Failed to send email. Please try again later.");
+        }
     }
 }
 
