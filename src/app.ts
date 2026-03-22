@@ -1,4 +1,5 @@
-import express,{
+import "dotenv/config";
+import express, {
     type Request,
     type Response,
     type NextFunction
@@ -8,8 +9,20 @@ import apiRoutes from './interfaces/routes/index.js';
 
 const app = express();
 
+// Config CORS
+const corsOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
+    .split(",").map(url => url.trim());
+    
+const corsOptions = {
+    origin: corsOrigins,
+    credentials: true, // Allow cookies
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 200,
+};
+
 //middlewares
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 //health check endpoint
@@ -22,11 +35,11 @@ app.use('/api', apiRoutes);
 
 //global error middleware
 app.use(
-    (   error:unknown,
+    (error: unknown,
         req: Request,
         res: Response,
         next: NextFunction
-    ) : void => {
+    ): void => {
         const message = error instanceof Error ? error.message : 'Internal server error';
         res.status(500).json({ message });
     }
