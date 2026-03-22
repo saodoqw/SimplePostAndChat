@@ -5,45 +5,89 @@ import {
     UserUseCase,
 } from "../../usecases/users/users.usecases.js";
 import { type UserEntity } from "../../domain/entities/user.entity.js";
+import { type AuthenticatedRequest } from "../middlewares/auth.middleware.js";
 
 export class UserController {
 
+
     constructor(private readonly userUseCase: UserUseCase) { }
 
-    create = async (
+
+
+    findByEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const email = this.getBodyString(req.params?.email).trim();
+            if (!email) {
+                res.status(400).json({ message: "email is required" });
+                return;
+            }
+            const user = await this.userUseCase.getUserByEmail(email);
+            if (!user) {
+                res.status(404).json({ message: "User not found" });
+                return;
+            }
+            res.status(200).json({ data: this.toResponse(user) });
+        }
+        catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    searchUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const query = this.getBodyString(req.params?.query).trim();
+            if (!query) {
+                res.status(400).json({ message: "Search query is required" });
+                return;
+            }
+            const users = await this.userUseCase.searchUsers(query);
+            res.status(200).json({ data: users.map(this.toResponse) });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+
+
+    updateUser = async (
         req: Request,
         res: Response,
         next: NextFunction
     ): Promise<void> => {
         try {
-            const username = this.getBodyString(req.body?.username);
-            const email = this.getBodyString(req.body?.email);
-            const password = this.getBodyString(req.body?.password);
+            const id = this.getBodyString(req.params?.id).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
 
-            await this.userUseCase.createTemporaryUser({
-                username: this.trimString(username),
-                email: this.trimString(email),
-                password: this.trimString(password),
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+
+            if (authUser.userId !== id) {
+                res.status(403).json({ message: "Forbidden" });
+                return;
+            }
+
+            const updatedUser = await this.userUseCase.updateUser(id, {
+                username: this.getBodyString(req.body?.username),
+                bio: this.getBodyString(req.body?.bio),
             });
 
-            res.status(201).json({ message: "Verification email sent" });
+            if (!updatedUser) {
+                res.status(404).json({ message: "User not found" });
+                return;
+            }
+
+            res.status(200).json({ data: this.toResponse(updatedUser) });
         } catch (error) {
-            if (error instanceof CreateUserValidationError) {
-                res.status(400).json({ message: error.message });
-                return;
-            }
-
-            if (error instanceof CreateUserConflictError) {
-                res.status(409).json({ message: error.message });
-                return;
-            }
-
+            res.status(400).json({ message: "Internal server error" });
             next(error);
         }
-    };
-
-    register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-        await this.create(req, res, next);
     };
 
     updateAvatar = async (
@@ -53,13 +97,28 @@ export class UserController {
     ): Promise<void> => {
         try {
             const id = this.getBodyString(req.params?.id).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
 
             if (!id) {
                 res.status(400).json({ message: "id is required" });
                 return;
             }
 
-            if (!req.file?.buffer?.length) {
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+
+            if (authUser.userId !== id) {
+                res.status(403).json({ message: "Forbidden" });
+                return;
+            }
+
+            const avatarInput = req.file?.buffer?.length
+                ? { buffer: req.file.buffer }
+                : undefined;
+
+            if (!avatarInput) {
                 res.status(400).json({ message: "avatar file is required" });
                 return;
             }
@@ -67,8 +126,9 @@ export class UserController {
             const updatedUser = await this.userUseCase.updateUser(
                 id,
                 {},
-                { buffer: req.file.buffer }
+                avatarInput
             );
+
 
             if (!updatedUser) {
                 res.status(404).json({ message: "User not found" });
@@ -77,23 +137,203 @@ export class UserController {
 
             res.status(200).json({ data: this.toResponse(updatedUser) });
         } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
             next(error);
         }
     };
 
+    deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (authUser.userId !== id) {
+                res.status(403).json({ message: "Forbidden" });
+                return;
+            }
+            await this.userUseCase.deleteUser(id);
+            res.status(204).send("Delete success");
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    followUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (authUser.userId === id) {
+                res.status(400).json({ message: "Cannot follow yourself" });
+                return;
+            }
+            await this.userUseCase.followUser(authUser.userId, id);
+            res.status(200).json({ message: "Followed user successfully" });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+
+    unfollowUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (authUser.userId === id) {
+                res.status(400).json({ message: "Cannot unfollow yourself" });
+                return;
+            }
+            await this.userUseCase.unfollowUser(authUser.userId, id);
+            res.status(200).json({ message: "Unfollowed user successfully" });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    isFollowing = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (authUser.userId === id) {
+                res.status(400).json({ message: "Cannot check following status for yourself" });
+                return;
+            }
+            const isFollowing = await this.userUseCase.isFollowing(authUser.userId, id);
+            res.status(200).json({ data: { isFollowing } });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    isBothFollowing = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (authUser.userId === id) {
+                res.status(400).json({ message: "Cannot check following status for yourself" });
+                return;
+            }
+            const isBothFollow = await this.userUseCase.isbothFollowing(authUser.userId, id);
+            res.status(200).json({ data: { isBothFollow } });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    getFollowingCount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
+
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (authUser.userId !== id) {
+                res.status(403).json({ message: "Forbidden" });
+                return;
+            }
+            const followingCount = await this.userUseCase.getFollowingCount(id);
+            res.status(200).json({ data: { followingCount } });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    getFollowersCount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+            const followersCount = await this.userUseCase.getFollowersCount(id);
+            res.status(200).json({ data: { followersCount } });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    getFollowersPublicList = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+
+            const followersList = await this.userUseCase.getFollowers(id);
+            res.status(200).json({ data: { followersList } });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    getFollowingPublicList = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = this.getBodyString(req.params?.id).trim();
+            if (!id) {
+                res.status(400).json({ message: "id is required" });
+                return;
+            }
+            const followingList = await this.userUseCase.getFollowing(id);
+            res.status(200).json({ data: { followingList } });
+        } catch (error) {
+            res.status(400).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
     private getBodyString(value: unknown): string {
         return typeof value === "string" ? value : "";
     }
-    private trimString(value: string): string {
-        return value.trim();
-    }
-
-    private toResponse(user: UserEntity): Omit<UserEntity, "passwordHash"> {
+    private toResponse(user: UserEntity): Omit<UserEntity, "passwordHash" | "publicId"> {
         return {
             id: user.id,
             username: user.username,
             email: user.email,
-            publicId: user.publicId,
             avatarUrl: user.avatarUrl,
             bio: user.bio,
             createdAt: user.createdAt,

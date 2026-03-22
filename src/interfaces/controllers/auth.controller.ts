@@ -14,7 +14,7 @@ export class AuthController {
     constructor(
         private readonly userUseCase: UserUseCase,
         private readonly authUseCase: AuthUseCase,
-    ) {}
+    ) { }
 
     register = async (
         req: Request,
@@ -47,7 +47,29 @@ export class AuthController {
             next(error);
         }
     };
+    verifyRegistrationToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const token = this.getBodyString(req.params?.id).trim();
+            const email = this.getBodyString(req.query?.email).trim();
 
+            if (!token || !email) {
+                res.status(400).json({ message: "token and email are required" });
+                return;
+            }
+            await this.userUseCase.verifyEmail(email, token);
+            res.status(200).json({ message: "Email verified successfully" });
+        } catch (error) {
+            if (error instanceof CreateUserValidationError) {
+                res.status(400).json({ message: error.message });
+                return;
+            }
+            if (error instanceof CreateUserConflictError) {
+                res.status(409).json({ message: error.message });
+                return;
+            }
+            next(error);
+        }
+    };
     login = async (
         req: Request,
         res: Response,
@@ -77,6 +99,42 @@ export class AuthController {
             next(error);
         }
     };
+    requestRefreshPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const email = this.getBodyString(req.query?.email);
+            if (!email) {
+                res.status(400).json({ message: "email is required" });
+                return;
+            }
+            await this.userUseCase.requestPasswordReset(email);
+            res.status(200).json({ message: "Password reset email sent" });
+
+        } catch (error) {
+            res.status(500).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+    verifyPasswordResetToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const token = this.getBodyString(req.params?.id).trim();
+            const email = this.getBodyString(req.query?.email).trim();
+            const newPassword = this.getBodyString(req.body?.newPassword).trim();
+            if (!token || !email || !newPassword) {
+                res.status(400).json({ message: "token, email, and new password are required" });
+                return;
+            }
+            await this.userUseCase.resetPassword(email, token, newPassword);
+            res.status(200).json({ message: "Password reset successfully" });
+        } catch (error) {
+            if (error instanceof CreateUserValidationError) {
+                res.status(400).json({ message: error.message });
+                return;
+            }
+            res.status(500).json({ message: "Internal server error" });
+            next(error);
+        }
+    };
+
 
     private getBodyString(value: unknown): string {
         return typeof value === "string" ? value : "";

@@ -24,5 +24,9 @@ const authController = new AuthController(userUseCase, authUseCase);
 
 authRoutes.post("/register", authController.register);
 authRoutes.post("/login", authController.login);
-
+//need email in query
+authRoutes.get("/verify-email/:token", authController.verifyRegistrationToken);
+authRoutes.post("/request-password-reset", authController.requestRefreshPassword);
+authRoutes.post("/reset-password/:token", authController.verifyPasswordResetToken);
+//
 export default authRoutes;

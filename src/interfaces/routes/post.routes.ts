@@ -3,15 +3,28 @@ import { PrismaPostRepository } from "../../infrastructure/database/prisma/repos
 import { cloudinaryService } from "../../infrastructure/imageStorage/cloudinary/cloudinary.service.js";
 import { uploadImageMiddleware } from "../middlewares/upload.middleware.js";
 
-import { CreatePostUseCase } from "../../usecases/posts/post.usecase.js";
+import { PostUseCase } from "../../usecases/posts/post.usecase.js";
 import { PostController } from "../controllers/post.controller.js";
 
 const postRoutes = Router();
 
 const postRepository = new PrismaPostRepository();
-const createPostUseCase = new CreatePostUseCase(postRepository, cloudinaryService);
-const postController = new PostController(createPostUseCase);
+const postUseCase = new PostUseCase(postRepository, cloudinaryService);
+const postController = new PostController(postUseCase);
 
-postRoutes.post("/", uploadImageMiddleware, postController.create);
+postRoutes.post('/create', uploadImageMiddleware, postController.create);
+//get all posts of a user by user id
+postRoutes.get('/user/:userId', postController.displayUserPosts);
+//get details of a post by post id, including content, image url, author id
+postRoutes.get('/details/:postId', postController.getPostDetails);
+//update post content not image
+postRoutes.patch('/update/:postId', postController.update);
+postRoutes.delete('/delete/:postId', postController.delete);
+postRoutes.get('/likeCommentCount/:postId', postController.getLikesCommentCount);
+postRoutes.post('/likeUnlike/:postId', postController.likeUnlikePost);
+postRoutes.get('/isLiked/:postId', postController.isPostLikedByAuthUser);
+postRoutes.post('/comment/:postId', uploadImageMiddleware, postController.commentOnPost);
+postRoutes.get('/comments/:postId', postController.getCommentsForPost);
+postRoutes.delete('/comment/:commentId', postController.deleteComment);
 
 export default postRoutes;
