@@ -36,7 +36,6 @@ export class PostController {
                 res.status(400).json({ message: error.message });
                 return;
             }
-
             next(error);
         }
     };
@@ -70,7 +69,7 @@ export class PostController {
             );
             res.status(200).json({ data: updatedPost });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -95,7 +94,7 @@ export class PostController {
             await this.postUseCase.deletePost(postId);
             res.status(200).json({ message: "Post deleted successfully" });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -120,7 +119,7 @@ export class PostController {
             }
             res.status(200).json({ data: postDetails });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -155,7 +154,7 @@ export class PostController {
                 res.status(400).json({ message: error.message });
                 return;
             }
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -176,7 +175,7 @@ export class PostController {
             const commentCounts = await this.postUseCase.findCommentsCount(postId);
             res.status(200).json({ data: { likeCounts, commentCounts } });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -205,7 +204,7 @@ export class PostController {
             );
             res.status(200).json({ data: { isLiked } });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -233,7 +232,7 @@ export class PostController {
             );
             res.status(200).json({ data: { isLiked } });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -270,7 +269,7 @@ export class PostController {
             });
             res.status(201).json({ data: createdComment });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -301,7 +300,7 @@ export class PostController {
             });
             res.status(200).json({ data: comments });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
@@ -326,7 +325,7 @@ export class PostController {
             await this.postUseCase.deleteComment(commentId);
             res.status(200).json({ message: "Comment deleted successfully" });
         } catch (error) {
-            res.status(400).json({ message: "Internal server error" });
+            res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };

@@ -30,29 +30,15 @@ interface ConversationRoomPayload {
     conversationId: string;
 }
 
-interface IncomingMediaFilePayload {
-    filename: string;
-    mimetype: string;
-    dataBase64: string;
-}
-
-interface SendMessagePayload {
-    conversationId: string;
-    content?: string;
-    mediaFiles?: IncomingMediaFilePayload[];
-}
-
-interface SendMessageFileInput {
-    buffer: Buffer;
-    filename: string;
-    mimetype: string;
-}
+let activeIo: Server | null = null;
 
 const chatRepository = new PrismaChatRepository();
 const userRepository = new PrismaUserRepository();
 const chatUseCase = new ChatUseCase(chatRepository, cloudinaryService, userRepository);
 
+// This function registers all chat-related socket event handlers and middlewares
 export function registerChatSocket(io: Server): void {
+    activeIo = io;
     io.use((socket, next) => {
         try {
             const token = resolveAccessToken(socket);
@@ -66,7 +52,8 @@ export function registerChatSocket(io: Server): void {
 
     io.on("connection", (socket) => {
         const authedSocket = socket as AuthenticatedSocket;
-
+        //create event handlers for joining/leaving conversation rooms
+        //and sending messages and callback acks for success/error handling
         authedSocket.on("conversation:join", async (payload: ConversationRoomPayload, ack?: SocketAck) => {
             try {
                 const conversationId = payload?.conversationId?.trim();
@@ -103,41 +90,26 @@ export function registerChatSocket(io: Server): void {
                 ack?.({ ok: false, error: toErrorMessage(error) });
             }
         });
+    });
+}
 
-        authedSocket.on("message:send", async (payload: SendMessagePayload, ack?: SocketAck) => {
-            try {
-                const conversationId = payload?.conversationId?.trim();
-                if (!conversationId) {
-                    throw new Error("conversationId is required");
-                }
+export function emitNewMessageToConversation(
+    conversationId: string,
+    createdMessage: MessageEntity | MessageWithMediaRepositoryResult,
+): void {
+    const normalizedConversationId = conversationId.trim();
+    if (!normalizedConversationId) {
+        throw new Error("conversationId is required");
+    }
 
-                const isMember = await chatUseCase.isUserInConversation(
-                    conversationId,
-                    authedSocket.data.authUser.userId,
-                );
-                if (!isMember) {
-                    throw new Error("Forbidden: user is not in conversation");
-                }
+    if (!activeIo) {
+        return;
+    }
 
-                const mediaFiles = mapIncomingMediaFiles(payload.mediaFiles);
-                const createdMessage = await chatUseCase.sendMessage(
-                    conversationId,
-                    authedSocket.data.authUser.userId,
-                    payload.content,
-                    mediaFiles,
-                );
-
-                const messagePayload = normalizeCreatedMessage(createdMessage);
-                io.to(getConversationRoom(conversationId)).emit("message:new", {
-                    conversationId,
-                    ...messagePayload,
-                });
-
-                ack?.({ ok: true, data: messagePayload });
-            } catch (error) {
-                ack?.({ ok: false, error: toErrorMessage(error) });
-            }
-        });
+    const messagePayload = normalizeCreatedMessage(createdMessage);
+    activeIo.to(getConversationRoom(normalizedConversationId)).emit("message:new", {
+        conversationId: normalizedConversationId,
+        ...messagePayload,
     });
 }
 
@@ -162,27 +134,6 @@ function getConversationRoom(conversationId: string): string {
     return `conversation:${conversationId}`;
 }
 
-function mapIncomingMediaFiles(mediaFiles?: IncomingMediaFilePayload[]): SendMessageFileInput[] | undefined {
-    if (!mediaFiles?.length) {
-        return undefined;
-    }
-
-    const normalizedFiles = mediaFiles
-        .map((file) => ({
-            filename: file.filename?.trim() ?? "",
-            mimetype: file.mimetype?.trim() ?? "",
-            dataBase64: file.dataBase64?.trim() ?? "",
-        }))
-        .filter((file) => file.filename && file.mimetype && file.dataBase64)
-        .map((file) => ({
-            filename: file.filename,
-            mimetype: file.mimetype,
-            buffer: Buffer.from(file.dataBase64, "base64"),
-        }))
-        .filter((file) => file.buffer.length > 0);
-
-    return normalizedFiles.length ? normalizedFiles : undefined;
-}
 
 function normalizeCreatedMessage(
     createdMessage: MessageEntity | MessageWithMediaRepositoryResult,

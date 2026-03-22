@@ -256,11 +256,12 @@ export class PrismaChatRepository implements ChatRepository {
         if (!existingConversation) {
             throw new Error("Conversation not found.");
         }
-        const existingUserIds = await prisma.conversationUser.findFirst({
+        const existingUsers = await prisma.conversationUser.findMany({
             where: { conversation_id: conversationId, user_id: { in: userIds } },
         });
-        if (existingUserIds) {
-            throw new Error("One or more users are already in the conversation.");
+        if (existingUsers.length > 0) {
+            const duplicateUserIds = existingUsers.map(u => u.user_id).join(", ");
+            throw new Error(`These users are already in the conversation: ${duplicateUserIds}`);
         }
         const addToConversationData = userIds.map((userId) => ({
             conversation_id: conversationId,

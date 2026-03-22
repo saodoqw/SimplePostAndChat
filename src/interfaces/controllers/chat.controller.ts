@@ -1,6 +1,7 @@
 import { type NextFunction, type Request, type Response } from "express";
 import { type AuthenticatedRequest } from "../middlewares/auth.middleware.js";
 import { ChatUseCase } from "../../usecases/chats/chats.usecases.js";
+import { emitNewMessageToConversation } from "../../infrastructure/socket/chat.socket.js";
 
 export class ChatController {
     constructor(private chatUseCase: ChatUseCase) { }
@@ -219,7 +220,7 @@ export class ChatController {
             if (!normalizedParticipantIds.length) {
                 res.status(400).json({ message: "participantIds is required" });
                 return;
-            }   
+            }
             const conversation = await this.chatUseCase.removeParticipants(
                 conversationId,
                 authUser.userId,
@@ -317,6 +318,7 @@ export class ChatController {
                 mediaFiles,
             );
 
+            emitNewMessageToConversation(conversationId, message);
             res.status(201).json({ data: message });
         } catch (error) {
             res.status(400).json({ message: (error as Error).message });
@@ -466,8 +468,8 @@ export class ChatController {
             next(error);
         }
     };
-    
-            
+
+
     private getBodyString(value: unknown): string {
         return typeof value === "string" ? value : "";
     }
