@@ -1,5 +1,4 @@
 import { type ConversationEntity } from "../entities/conversation.entity.js";
-import { type ConversationUserEntity } from "../entities/conversation-user.entity.js";
 import { type MessageEntity } from "../entities/message.entity.js";
 import { type MessageMediaEntity } from "../entities/message-media.entity.js";
 
@@ -36,9 +35,17 @@ export interface ConversationWithUsersRepositoryInput {
 	conversationId: string;
 }
 
+export interface ConversationMemberRepositoryResult {
+	id: string;
+	userId: string;
+	conversationId: string;
+	admin: boolean;
+	createdAt: Date;
+}
+
 export interface ConversationWithUsersRepositoryResult {
 	conversation: ConversationEntity;
-	users: ConversationUserEntity[];
+	users: ConversationMemberRepositoryResult[];
 }
 export interface CreateMessageRepositoryInput {
 	conversationId: string;
@@ -89,6 +96,8 @@ export interface ChatRepository {
 
 	// Find conversations for a user
 	findConversations(query: FindConversationsQuery): Promise<FindConversationsResult>;
+	// Get direct conversation between two users (find-or-null)
+	findDirectConversation(userId1: string, userId2: string): Promise<ConversationWithUsersRepositoryResult | null>;
 	// Get conversation details along with its users
 	findConversationWithUsers(conversationId: string): Promise<ConversationWithUsersRepositoryResult>;
 
@@ -96,13 +105,18 @@ export interface ChatRepository {
     addUsersToConversation(conversationId: string, userIds: string[]): Promise<void>;
 	removeUsersFromConversation(conversationId: string, userIds: string[]): Promise<void>;
     isUserInConversation(conversationId: string, userId: string): Promise<boolean>;
+	leaveConversation(conversationId: string, userId: string): Promise<void>;
+	isAdmin(conversationId: string, userId: string): Promise<boolean>;
+	// grantAdmin(conversationId: string, userId: string): Promise<void>;
+	// revokeAdmin(conversationId: string, userId: string): Promise<void>;
+	transferAdmin(conversationId: string, fromUserId: string, toUserId: string): Promise<void>;
     
-
     // Sub-domain: Message
     createMessage(input: CreateMessageRepositoryInput): Promise<MessageEntity>;
     createMessageWithMedia(input: CreateMessageWithMediaRepositoryInput): Promise<MessageWithMediaRepositoryResult>;
+	findMessageById(messageId: string): Promise<MessageEntity | null>;
     updateMessage(messageId: string, input: UpdateMessageRepositoryInput): Promise<MessageEntity>;
 	findMessages(query: FindMessagesQuery): Promise<FindMessagesResult>;
     deleteMessage(messageId: string): Promise<void>;
-	displayMessages(conversationId: string): Promise<MessageWithMediaRepositoryResult[]>;
+	//displayMessages(conversationId: string): Promise<MessageWithMediaRepositoryResult[]>;
 }

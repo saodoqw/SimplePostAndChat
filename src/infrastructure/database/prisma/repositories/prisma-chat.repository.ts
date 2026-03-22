@@ -191,6 +191,41 @@ export class PrismaChatRepository implements ChatRepository {
                     : undefined,
         };
     }
+
+    async findDirectConversation(userId1: string, userId2: string): Promise<ConversationWithUsersRepositoryResult | null> {
+        const conversationRecord = await prisma.conversation.findFirst({
+            where: {
+                is_group: false,
+                conversationUsers: {
+                    some: { user_id: userId1 }
+                },
+                AND: {
+                    conversationUsers: {
+                        some: { user_id: userId2 }
+                    }
+                }
+            },
+            include: {
+                conversationUsers: true,
+            }
+        });
+        if (!conversationRecord) {
+            return null;
+        }
+        const conversationEntity = ConversationEntityMapper.toEntity(conversationRecord);
+        const users = conversationRecord.conversationUsers.map((cu) => ({
+            id: cu.id,
+            userId: cu.user_id,
+            conversationId: cu.conversation_id,
+            admin: cu.is_admin,
+            createdAt: cu.created_at,
+        }));
+        return {
+            conversation: conversationEntity,
+            users,
+        };
+    }
+
     async findConversationWithUsers(conversationId: string): Promise<ConversationWithUsersRepositoryResult> {
         const conversationRecord = await prisma.conversation.findUnique({
             where: { id: conversationId },
@@ -235,6 +270,128 @@ export class PrismaChatRepository implements ChatRepository {
         await prisma.conversationUser.createMany({
             data: addToConversationData,
         });
+    }
+    async leaveConversation(conversationId: string, userId: string): Promise<void> {
+        const existingConversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+        });
+        if (!existingConversation) {
+            throw new Error("Conversation not found.");
+        }
+        const userInConversation = await prisma.conversationUser.findUnique({
+            where: { conversation_id_user_id: { conversation_id: conversationId, user_id: userId } },
+        });
+        if (!userInConversation) {
+            throw new Error("User is not in the conversation.");
+        }
+        await prisma.conversationUser.delete({
+            where: { conversation_id_user_id: { conversation_id: conversationId, user_id: userId } },
+        });
+    }
+    // async grantAdmin(conversationId: string, userId: string): Promise<void> {
+    //     const existingConversation = await prisma.conversation.findUnique({
+    //         where: { id: conversationId },
+    //     });
+    //     if (!existingConversation) {
+    //         throw new Error("Conversation not found.");
+    //     }
+    //     const userInConversation = await prisma.conversationUser.findUnique({
+    //         where: { conversation_id_user_id: { conversation_id: conversationId, user_id: userId } },
+    //     });
+    //     if (!userInConversation) {
+    //         throw new Error("User is not in the conversation.");
+    //     }
+    //     await prisma.conversationUser.update({
+    //         where: { conversation_id_user_id: { conversation_id: conversationId, user_id: userId } },
+    //         data: { is_admin: true },
+    //     });
+    // }
+    // async revokeAdmin(conversationId: string, userId: string): Promise<void> {
+    //     const existingConversation = await prisma.conversation.findUnique({
+    //         where: { id: conversationId },
+    //     });
+    //     if (!existingConversation) {
+    //         throw new Error("Conversation not found.");
+    //     }
+    //     const userInConversation = await prisma.conversationUser.findUnique({
+    //         where: { conversation_id_user_id: { conversation_id: conversationId, user_id: userId } },
+    //     });
+    //     if (!userInConversation) {
+    //         throw new Error("User is not in the conversation.");
+    //     }
+    //     await prisma.conversationUser.update({
+    //         where: { conversation_id_user_id: { conversation_id: conversationId, user_id: userId } },
+    //         data: { is_admin: false },
+    //     });
+    // }
+    async transferAdmin(conversationId: string, fromUserId: string, toUserId: string): Promise<void> {
+        await prisma.$transaction(async (tx) => {
+            const existingConversation = await tx.conversation.findUnique({
+                where: { id: conversationId },
+            });
+            if (!existingConversation) {
+                throw new Error("Conversation not found.");
+            }
+
+            const fromMember = await tx.conversationUser.findUnique({
+                where: {
+                    conversation_id_user_id: {
+                        conversation_id: conversationId,
+                        user_id: fromUserId,
+                    },
+                },
+            });
+            if (!fromMember) {
+                throw new Error("Current admin is not in the conversation.");
+            }
+
+            const toMember = await tx.conversationUser.findUnique({
+                where: {
+                    conversation_id_user_id: {
+                        conversation_id: conversationId,
+                        user_id: toUserId,
+                    },
+                },
+            });
+            if (!toMember) {
+                throw new Error("New admin is not in the conversation.");
+            }
+
+            await tx.conversationUser.update({
+                where: {
+                    conversation_id_user_id: {
+                        conversation_id: conversationId,
+                        user_id: toUserId,
+                    },
+                },
+                data: { is_admin: true },
+            });
+
+            await tx.conversationUser.update({
+                where: {
+                    conversation_id_user_id: {
+                        conversation_id: conversationId,
+                        user_id: fromUserId,
+                    },
+                },
+                data: { is_admin: false },
+            });
+        });
+    }
+    async isAdmin(conversationId: string, userId: string): Promise<boolean> {
+        const existingConversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+        });
+        if (!existingConversation) {
+            throw new Error("Conversation not found.");
+        }
+        const userInConversation = await prisma.conversationUser.findUnique({
+            where: { conversation_id_user_id: { conversation_id: conversationId, user_id: userId } },
+        });
+        if (!userInConversation) {
+            throw new Error("User is not in the conversation.");
+        }
+        return userInConversation.is_admin;
     }
     async removeUsersFromConversation(conversationId: string, userIds: string[]): Promise<void> {
         const existingConversation = await prisma.conversation.findUnique({
@@ -332,6 +489,15 @@ export class PrismaChatRepository implements ChatRepository {
                 media: mediaRecords.map((record) => MessageMediaEntityMapper.toEntity(record)),
             };
         });
+    }
+    async findMessageById(messageId: string): Promise<MessageEntity | null> {
+        const messageRecord = await prisma.message.findUnique({
+            where: { id: messageId },
+        });
+        if (!messageRecord) {
+            return null;
+        }
+        return MessageEntityMapper.toEntity(messageRecord);
     }
     async updateMessage(messageId: string, input: UpdateMessageRepositoryInput): Promise<MessageEntity> {
         const existingMessage = await prisma.message.findUnique({

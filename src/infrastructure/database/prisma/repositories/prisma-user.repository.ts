@@ -40,6 +40,35 @@ class FollowEntityMapper {
 
 export class PrismaUserRepository implements UserRepository {
 
+    async searchUsersByUsernameOrEmail(trimmedQuery: string): Promise<UserEntity[]> {
+        const records= await prisma.user.findMany({
+            where: {
+                OR: [
+                    { username: { contains: trimmedQuery, mode: 'insensitive' } },
+                    { email: { contains: trimmedQuery, mode: 'insensitive' } }
+                ]
+            }
+        });
+        return records.map(UserEntityMapper.toDomain);
+    }
+    
+    async getFollowers(userId: string): Promise<UserEntity[]> {
+        const records = await prisma.follow.findMany({
+            where: { following_id: userId },
+            include: { follower: true },
+        });
+        return records.map(record => UserEntityMapper.toDomain(record.follower));
+    }
+
+    async getFollowing(userId: string): Promise<UserEntity[]> {
+        const records = await prisma.follow.findMany({
+            where: { follower_id: userId },
+            include: { following: true },
+        });
+        return records.map(record => UserEntityMapper.toDomain(record.following));
+    }
+
+
     async create(data: CreateUserRepositoryInput): Promise<UserEntity> {
         // New users can start without avatar, so Cloudinary public_id,avatar_url is null by default.
         const record = await prisma.user.create({
@@ -47,7 +76,7 @@ export class PrismaUserRepository implements UserRepository {
                 username: data.username,
                 email: data.email,
                 password_hash: data.passwordHash,
-                public_id: null,   
+                public_id: null,
                 avatar_url: null,
                 bio: null,
             },
