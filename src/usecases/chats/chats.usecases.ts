@@ -362,6 +362,9 @@ export class ChatUseCase {
         if (existingMessage.senderId !== normalizedUserId) {
             throw new Error("Forbidden: only message owner can update this message");
         }
+        if (existingMessage.createdAt.getTime() + 5 * 60 * 1000 < Date.now()) {
+            throw new Error("Forbidden: messages can only be edited within 5 minutes of sending");
+        }
 
         return this.chatRepository.updateMessage(normalizedMessageId, { content: normalizedContent });
     }
@@ -388,7 +391,7 @@ export class ChatUseCase {
         if (existingMessage.senderId !== normalizedUserId) {
             throw new Error("Forbidden: only message owner can delete this message");
         }
-        
+
         return this.chatRepository.deleteMessage(normalizedMessageId);
     }
     // async displayMessages(conversationId: string) {
