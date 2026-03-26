@@ -167,32 +167,29 @@ export class ChatController {
                 return;
             }
             const conversationId = this.getParamString(req.params.conversationId).trim();
-            const participantIds = this.getBodyStringArray(req.body?.participantIds);
-            const userIdToAdd = this.getBodyString(req.body?.userIdToAdd).trim();
-            const normalizedParticipantIds = participantIds.length
-                ? participantIds
-                : userIdToAdd
-                    ? [userIdToAdd]
-                    : [];
+            const userIdToAdd = this.getBodyStringArray(req.body?.userIdToAdd);
+
             if (!conversationId) {
                 res.status(400).json({ message: "Conversation ID is required" });
                 return;
             }
-            if (!normalizedParticipantIds.length) {
-                res.status(400).json({ message: "participantIds is required" });
+            if (!userIdToAdd) {
+                res.status(400).json({ message: "userIdToAdd is required" });
                 return;
             }
+
             const conversation = await this.chatUseCase.addParticipants(
                 conversationId,
                 authUser.userId,
-                normalizedParticipantIds,
+                userIdToAdd,
             );
-            res.status(200).json({ data: conversation });
+            res.status(200).json({ message: "Users added to group successfully" });
         } catch (error) {
             res.status(400).json({ message: (error as Error).message });
             next(error);
         }
     };
+
     removeUsersFromGroup = async (
         req: Request,
         res: Response,
@@ -204,29 +201,22 @@ export class ChatController {
                 res.status(401).json({ message: "Unauthorized" });
                 return;
             }
-
             const conversationId = this.getParamString(req.params.conversationId).trim();
-            const participantIds = this.getBodyStringArray(req.body?.participantIds);
-            const userIdToRemove = this.getBodyString(req.body?.userIdToRemove).trim();
-            const normalizedParticipantIds = participantIds.length
-                ? participantIds
-                : userIdToRemove
-                    ? [userIdToRemove]
-                    : [];
+            const userIdToRemove = this.getBodyStringArray(req.body?.userIdToRemove);
             if (!conversationId) {
                 res.status(400).json({ message: "Conversation ID is required" });
                 return;
             }
-            if (!normalizedParticipantIds.length) {
-                res.status(400).json({ message: "participantIds is required" });
+            if (!userIdToRemove) {
+                res.status(400).json({ message: "userIdToRemove is required" });
                 return;
             }
             const conversation = await this.chatUseCase.removeParticipants(
                 conversationId,
                 authUser.userId,
-                normalizedParticipantIds,
+                userIdToRemove,
             );
-            res.status(200).json({ data: conversation });
+            res.status(200).json({ message: "Users removed from group successfully" });
         } catch (error) {
             res.status(400).json({ message: (error as Error).message });
             next(error);
@@ -521,12 +511,16 @@ export class ChatController {
             }));
         }
 
-        const mediaFiles = req.files.media;
-        if (!Array.isArray(mediaFiles)) {
+        const mergedMediaFiles = [
+            ...(Array.isArray(req.files.images) ? req.files.images : []),
+            ...(Array.isArray(req.files.videos) ? req.files.videos : []),
+        ];
+
+        if (!mergedMediaFiles.length) {
             return undefined;
         }
 
-        return mediaFiles.map((file) => ({
+        return mergedMediaFiles.map((file) => ({
             buffer: file.buffer,
             filename: file.originalname,
             mimetype: file.mimetype,

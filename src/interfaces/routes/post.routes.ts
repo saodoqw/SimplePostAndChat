@@ -14,6 +14,7 @@ const postController = new PostController(postUseCase);
 
 postRoutes.post('/create', uploadImageMiddleware, postController.create);
 //get all posts of a user by user id
+//can paginate by query params page and limit,sort by query param sortBy (created_at or updated_at) and order (asc or desc)
 postRoutes.get('/user/:userId', postController.displayUserPosts);
 //get details of a post by post id, including content, image url, author id
 postRoutes.get('/details/:postId', postController.getPostDetails);

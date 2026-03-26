@@ -1,9 +1,7 @@
 import "dotenv/config";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { CloudinaryServiceImpl } from "../cloudinary/cloudinary.service.js";
-
-const cloudinaryService = new CloudinaryServiceImpl();
+import { cloudinaryService } from "../cloudinary/cloudinary.service.js";
 
 async function main() {
 //   const imagePath = path.resolve("src/infrastructure/imageStorage/test/test.jpg");

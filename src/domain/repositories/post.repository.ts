@@ -110,7 +110,7 @@ export interface PostRepository {
 
     // Sub-domain: PostComment (add/retrieve/remove comments)
     findCommentCount(postId: string): Promise<number>;
-    findCommentById(commentId: string): Promise<CommentEntity | null>;
+    findCommentById(commentId: string): Promise<PostCommentWithMediaRepositoryResult | null>;
     createComment(data: CreatePostCommentRepositoryInput): Promise<CommentEntity>;
     createCommentWithMedia(data: CreatePostCommentWithMediaRepositoryInput): Promise<PostCommentWithMediaRepositoryResult>;
     displayCommentsFromPost(query: FindPostComment): Promise<FindPostCommentsResult>;

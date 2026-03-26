@@ -161,6 +161,16 @@ export class PostUseCase {
         if (existingPost.post.author_id !== userId) {
             throw new Error("Unauthorized: You can only delete your own posts");
         }
+        try {
+            await Promise.all(existingPost.media.map(async (media) => {
+                if (media.publicId) {
+                    await this.cloudinaryService.deleteImage(media.publicId);
+                }
+            }));
+        }
+        catch (error) {
+            console.error("Failed to delete post media from Cloudinary:", error);
+        }
         await this.postRepository.deleteById(postId);
     }
 
@@ -220,7 +230,7 @@ export class PostUseCase {
         return await this.postRepository.findLikesCount(postId);
     }
 
-    async likeUnlikePost(postId: string, userId: string): Promise<void> {
+    async likeUnlikePost(postId: string, userId: string): Promise<boolean> {
         const existingPost = await this.postRepository.findById(postId);
         if (!existingPost) {
             throw new Error("Post not found");
@@ -232,6 +242,7 @@ export class PostUseCase {
         else {
             await this.postRepository.likePost(postId, userId);
         }
+        return !hasLiked;
     }
     async isPostLikedByUser(postId: string, userId: string): Promise<boolean> {
         const existingPost = await this.postRepository.findById(postId);
@@ -348,10 +359,20 @@ export class PostUseCase {
         if (!existingComment) {
             throw new Error("Comment not found");
         }
-        if (existingComment.userId !== userId) {
+        if (existingComment.comment.userId !== userId) {
             throw new Error("Unauthorized: You can only delete your own comments");
         }
-        await this.postRepository.deleteById(commentId);
+        try{
+            await Promise.all(existingComment.media.map(async (media) => {
+                if(media.publicId){
+                    await this.cloudinaryService.deleteImage(media.publicId);
+                }   
+            }));
+        }
+        catch(error){
+            console.error("Failed to delete comment media from Cloudinary:", error);
+        }
+        await this.postRepository.deleteComment(commentId);
     }
 
     private async uploadImages(buffers?: Buffer[]): Promise<imageArray[]> {

@@ -3,7 +3,7 @@ import { PrismaChatRepository } from "../../infrastructure/database/prisma/repos
 import { PrismaUserRepository } from "../../infrastructure/database/prisma/repositories/prisma-user.repository.js";
 
 import { cloudinaryService } from "../../infrastructure/imageStorage/cloudinary/cloudinary.service.js";
-import { uploadImageMiddleware } from "../middlewares/upload.middleware.js";
+import {  uploadChatImageVideoMiddleware } from "../middlewares/upload.middleware.js";
 import { ChatUseCase } from "../../usecases/chats/chats.usecases.js";
 import { ChatController } from "../controllers/chat.controller.js";
 
@@ -31,18 +31,21 @@ chatRoutes.get("/group", chatController.displayUserConversations);
 //Get conversation details along with its users
 chatRoutes.get("/group/:conversationId", chatController.getConversationDetails);
 //Add users to group conversation, only for group conversations
-//conversationId is in url params, userIds are in body as an array of strings
+//conversationId is in url params, userIdToAdd are in body as an array of strings
 chatRoutes.post("/group/:conversationId/users", chatController.addUsersToGroup);
+//userIdToRemove is in body, conversationId is in url params
 chatRoutes.delete("/group/:conversationId/users", chatController.removeUsersFromGroup);
 chatRoutes.post("/group/:conversationId/leave", chatController.leaveGroup);
+//userIdToGrant is in body, conversationId is in url params
 chatRoutes.post("/group/:conversationId/grant-admin", chatController.grantAdmin);
 
 // Message endpoints
-chatRoutes.post("/:conversationId/messages", uploadImageMiddleware, chatController.sendMessage);
+chatRoutes.post("/:conversationId/messages", uploadChatImageVideoMiddleware, chatController.sendMessage);
 // Get messages for a conversation with pagination, sorting and searching
 //cursor, limit, sortBy, sortOrder, search are query params
 chatRoutes.get("/:conversationId/messages", chatController.paginateMessages);
 //messageId is in url params, new content is in body
 chatRoutes.put("/:conversationId/messages/:messageId", chatController.updateMessage);
 chatRoutes.delete("/:conversationId/messages/:messageId", chatController.deleteMessage);
+
 export default chatRoutes;

@@ -57,7 +57,7 @@ export interface PublicUser {
 }
 export class UserUseCase {
 
-    
+
     constructor(
         private readonly userRepository: UserRepository,
         private readonly cryptionService: CryptionService,
@@ -66,18 +66,18 @@ export class UserUseCase {
         private readonly cloudinaryService: CloudinaryService,
     ) { }
 
-    async searchUsers(query: string) {
+    async searchUsers(query: string, searchingUserId: string) {
         const trimmedQuery = query.trim();
         if (!trimmedQuery) {
             return [];
         }
-        const users = await this.userRepository.searchUsersByUsernameOrEmail(trimmedQuery);
+        const users = await this.userRepository.searchUsersByUsernameOrEmail(trimmedQuery, searchingUserId);
         return users;
     }
 
-    // This method creates a temporary user in Redis with a 15-minute expiration.
-    //User needs to verify their email within 15 minutes,
-    //otherwise they will need to start the registration process again.
+    // This method creates a temporary user in Redis with a 30-minute expiration.
+    // If the user already has a pending registration, reuse the existing token instead of generating a new one.
+    // This prevents token mismatch when user clicks register multiple times.
     async createTemporaryUser(
         input: CreateUserUseCaseInput
     ): Promise<void> {
@@ -105,8 +105,14 @@ export class UserUseCase {
             throw new CreateUserConflictError('username already exists');
         }
 
+        // Check if temporary user already exists in Redis
+        const existingTempUser = await this.redisService.get<UserCreateEntity>(`tempUser:${email}`);
+
         const passwordHash = await this.cryptionService.hashPassword(password);
-        const registrationToken = this.cryptionService.createToken();
+
+        // Reuse existing token if temporary user exists to avoid token mismatch
+        const registrationToken = existingTempUser?.registrationToken || this.cryptionService.createToken();
+
         const tempUser: UserCreateEntity = {
             username,
             email,
@@ -114,9 +120,13 @@ export class UserUseCase {
             registrationToken,
             isVerified: false,
         };
+
         await this.redisService.set(`tempUser:${email}`, tempUser, 60 * 30); // 30 minutes expiration
 
-        await this.sendGridService.sendVerificationEmailWithTemplate(email, registrationToken);
+        // Only send email if it's a new registration (no existing temporary user)
+        if (!existingTempUser) {
+            await this.sendGridService.sendVerificationEmailWithTemplate(email, registrationToken);
+        }
     }
     //Verify user and save to database, then delete the temporary user from Redis
     async verifyEmail(email: string, token: string): Promise<void> {
@@ -140,7 +150,46 @@ export class UserUseCase {
     }
 
     async deleteUser(id: string): Promise<void> {
-        return this.userRepository.delete(id);
+        //delete user and get list of media assets to delete from cloudinary,
+        // then delete media assets from cloudinary, finally delete user from database
+        const existingUser = await this.userRepository.findById(id);
+        if (!existingUser) {
+            throw new Error("User not found");
+        }
+        const mediaAssets = await this.userRepository.deleteAndGetMediaAssets(id);
+        if (!mediaAssets.length) {
+            return;
+        }
+        const assetMap = new Map();
+        //Use map to ensure we only attempt to delete each unique media asset once, in case of duplicates in the list
+        for (const asset of mediaAssets) {
+            const key = `${asset.mediaType}:${asset.publicId}`;
+            if (!assetMap.has(key)) {
+                assetMap.set(key, asset);
+            }
+        }
+        //delete media assets from cloudinary in parallel,
+        //but don't fail the whole operation if some deletions fail just log the errors
+        const uniqueAssets = Array.from(assetMap.values());
+
+        const deleteResults = await Promise.allSettled(
+            uniqueAssets.map((asset) =>
+                asset.mediaType === "video"
+                    ? this.cloudinaryService.deleteVideo(asset.publicId)
+                    : this.cloudinaryService.deleteImage(asset.publicId)
+            )
+        );
+
+        const failedDeletes = deleteResults
+            .map((result, index) => ({ result, asset: uniqueAssets[index] }))
+            .filter((entry) => entry.result.status === "rejected");
+
+        if (failedDeletes.length) {
+            console.error("Failed to delete some cloud assets after user deletion", {
+                userId: id,
+                failedAssets: failedDeletes.map((entry) => entry.asset.publicId),
+            });
+        }
     }
     async updateUser(
         id: string,
@@ -199,7 +248,7 @@ export class UserUseCase {
 
     async resetPassword(email: string, token: string, newPassword: string): Promise<void> {
         const storedToken = await this.redisService.get<string>(`passwordReset:${email}`);
-        
+
         if (!storedToken || !this.cryptionService.verifyToken(token, storedToken)) {
             throw new Error("Invalid or expired password reset token");
         }

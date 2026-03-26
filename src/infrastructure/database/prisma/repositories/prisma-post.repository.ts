@@ -405,11 +405,16 @@ export class PrismaPostRepository implements PostRepository {
             sortBy,
         };
     }
-    async findCommentById(commentId: string): Promise<CommentEntity | null> {
+    async findCommentById(commentId: string): Promise<PostCommentWithMediaRepositoryResult | null> {
         const record = await prisma.comment.findUnique({
             where: { id: commentId },
+            include: { media: true },
         });
-        return record ? CommentEntityMapper.toDomain(record) : null;
+        return record ? {
+            comment: CommentEntityMapper.toDomain(record),
+            media: record.media.map((mediaRecord) => CommentMediaEntityMapper.toDomain(mediaRecord)),
+        }
+            : null;
     }
 
     async deleteComment(commentId: string): Promise<void> {

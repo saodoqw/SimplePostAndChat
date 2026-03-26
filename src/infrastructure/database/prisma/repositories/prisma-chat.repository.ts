@@ -491,6 +491,22 @@ export class PrismaChatRepository implements ChatRepository {
             };
         });
     }
+    async getAllMessagesWithMedia(conversationId: string): Promise<MessageMediaEntity[]> {
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+        });
+        if (!conversation) {
+            throw new Error("Conversation not found.");
+        }
+        const mediaRecords = await prisma.messageMedia.findMany({
+            where: {
+                message: {
+                    conversation_id: conversationId
+                }
+            },
+        });
+        return mediaRecords.map((record) => MessageMediaEntityMapper.toEntity(record));
+    }
     async findMessageById(messageId: string): Promise<MessageEntity | null> {
         const messageRecord = await prisma.message.findUnique({
             where: { id: messageId },

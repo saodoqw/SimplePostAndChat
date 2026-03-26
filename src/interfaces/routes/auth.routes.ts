@@ -21,12 +21,14 @@ const userUseCase = new UserUseCase(
 );
 const authUseCase = new AuthUseCase(userRepository, cryptionService, tokenService);
 const authController = new AuthController(userUseCase, authUseCase);
-
+// username, email, password in body
 authRoutes.post("/register", authController.register);
+// email, password in body
 authRoutes.post("/login", authController.login);
 //need email in query
 authRoutes.get("/verify-email/:token", authController.verifyRegistrationToken);
 authRoutes.post("/request-password-reset", authController.requestRefreshPassword);
+// token in params, new password in body
 authRoutes.post("/reset-password/:token", authController.verifyPasswordResetToken);
 //
 export default authRoutes;

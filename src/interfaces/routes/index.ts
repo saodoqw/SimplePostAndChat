@@ -16,6 +16,7 @@ const apiRoutes = Router();
 
 //mount feature routes
 apiRoutes.use("/auth", authRoutes);
+apiRoutes.use("/sandbox", testRoute);
 apiRoutes.use("/posts", AuthMiddleware, postRoutes);
 apiRoutes.use("/tests", AuthMiddleware, testRoute);
 apiRoutes.use("/users", AuthMiddleware, userRoutes);

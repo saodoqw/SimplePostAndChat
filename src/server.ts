@@ -6,7 +6,7 @@ import { initializeSocketServer } from "./infrastructure/socket/socket.server.js
 
 const port = Number(process.env.PORT ?? 3000);
 
-async function bootstrap(): Promise<void> {
+async function start(): Promise<void> {
     await prisma.$connect();
     // Initialize Socket.IO server
     const httpServer = createServer(app);
@@ -17,7 +17,7 @@ async function bootstrap(): Promise<void> {
     });
 }
 
-void bootstrap().catch(async (error: unknown) => {
+start().catch(async (error: unknown) => {
     console.error("Failed to start server:", error);
     await prisma.$disconnect();
     process.exit(1);

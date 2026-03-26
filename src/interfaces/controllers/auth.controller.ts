@@ -49,8 +49,17 @@ export class AuthController {
     };
     verifyRegistrationToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const token = this.getBodyString(req.params?.id).trim();
+            const token = this.getBodyString(req.params?.token).trim();
             const email = this.getBodyString(req.query?.email).trim();
+
+            // console.log("[Verify Email] Request received:", {
+            //     method: req.method,
+            //     path: req.path,
+            //     params: req.params,
+            //     query: req.query,
+            //     token: token ? `${token.slice(0, 10)}...` : "empty",
+            //     email: email || "empty",
+            // });
 
             if (!token || !email) {
                 res.status(400).json({ message: "token and email are required" });
@@ -116,7 +125,7 @@ export class AuthController {
     };
     verifyPasswordResetToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const token = this.getBodyString(req.params?.id).trim();
+            const token = this.getBodyString(req.params?.token).trim();
             const email = this.getBodyString(req.query?.email).trim();
             const newPassword = this.getBodyString(req.body?.newPassword).trim();
             if (!token || !email || !newPassword) {

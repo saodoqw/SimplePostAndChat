@@ -1,3 +1,4 @@
+import { fail } from "node:assert";
 import {
     type ChatRepository,
     type CreateConversationRepositoryInput,
@@ -102,8 +103,41 @@ export class ChatUseCase {
             throw new Error("Conversation ID is required");
         }
         await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
-
+        await this.deleteImagesInConversation(normalizedConversationId);
         return this.chatRepository.deleteConversation(normalizedConversationId);
+    }
+
+    private async deleteImagesInConversation(conversationId: string): Promise<void> {
+        const messagesWithMedia = await this.chatRepository.getAllMessagesWithMedia(conversationId);
+
+        if (!messagesWithMedia.length) {
+            return;
+        }
+        const assetMap = new Map();
+        for (const asset of messagesWithMedia) {
+            const key = `${asset.mediaType}:${asset.publicId}`;
+            if (!assetMap.has(key)) {
+                assetMap.set(key, asset);
+            }
+        }
+        const uniqueAssets = Array.from(assetMap.values());
+
+        const deleteResults = await Promise.allSettled(
+            uniqueAssets.map((asset) =>
+                asset.mediaType === "video"
+                    ? this.cloudinaryService.deleteVideo(asset.publicId)
+                    : this.cloudinaryService.deleteImage(asset.publicId)
+            )
+        );
+        const failedDeletes = deleteResults
+            .map((result, index) => ({ result, asset: uniqueAssets[index] }))
+            .filter((entry) => entry.result.status === "rejected");
+
+        if (failedDeletes.length) {
+            console.error("Failed to delete some cloud assets after user deletion", {
+                failedAssets: failedDeletes.map((entry) => entry.asset.publicId),
+            });
+        }
     }
 
     async listUserConversations(userId: string, limit: number, cursor?: string) {
@@ -142,14 +176,27 @@ export class ChatUseCase {
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
-        await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
-
         const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
         if (!normalizedParticipantIds.length) {
             throw new Error("At least one participant ID is required");
         }
+        await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
         await this.ensureUsersExist(normalizedParticipantIds);
+        await this.ensureNotAddingExistingParticipants(normalizedConversationId, participantIds);
         return this.chatRepository.addUsersToConversation(normalizedConversationId, normalizedParticipantIds);
+    }
+
+    private ensureNotAddingExistingParticipants(conversationId: string, participantIds: string[]) {
+        const existingParticipantsPromise = this.chatRepository.findConversationWithUsers(conversationId)
+            .then((conversationWithUsers) => conversationWithUsers.users.map((user) => user.userId));
+        const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
+        const duplicateCheckPromise = existingParticipantsPromise.then((existingParticipantIds) => {
+            const duplicates = normalizedParticipantIds.filter((id) => existingParticipantIds.includes(id));
+            if (duplicates.length) {
+                throw new Error(`The following users are already participants in the conversation: ${duplicates.join(", ")}`);
+            }
+        });
+        return duplicateCheckPromise;
     }
 
     async removeParticipants(conversationId: string, requesterUserId: string, participantIds: string[]) {
@@ -163,7 +210,21 @@ export class ChatUseCase {
         if (!normalizedParticipantIds.length) {
             throw new Error("At least one participant ID is required");
         }
+        await this.ensureUsersExist(normalizedParticipantIds);
+        await this.ensureNotRemovingNonParticipants(normalizedConversationId, normalizedParticipantIds);
         return this.chatRepository.removeUsersFromConversation(normalizedConversationId, normalizedParticipantIds);
+    }
+    private ensureNotRemovingNonParticipants(conservationId: string, participantIds: string[]) {
+        const existingParticipantsPromise = this.chatRepository.findConversationWithUsers(conservationId)
+            .then((conversationWithUsers) => conversationWithUsers.users.map((user) => user.userId));
+        const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
+        const nonParticipantCheckPromise = existingParticipantsPromise.then((existingParticipantIds) => {
+            const nonParticipants = normalizedParticipantIds.filter((id) => !existingParticipantIds.includes(id));
+            if (nonParticipants.length) {
+                throw new Error(`The following users are not participants in the conversation: ${nonParticipants.join(", ")}`);
+            }
+        });
+        return nonParticipantCheckPromise;
     }
 
     async isUserInConversation(conversationId: string, userId: string) {
@@ -327,7 +388,7 @@ export class ChatUseCase {
         if (existingMessage.senderId !== normalizedUserId) {
             throw new Error("Forbidden: only message owner can delete this message");
         }
-
+        
         return this.chatRepository.deleteMessage(normalizedMessageId);
     }
     // async displayMessages(conversationId: string) {

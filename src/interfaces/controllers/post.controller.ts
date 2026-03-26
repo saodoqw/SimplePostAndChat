@@ -24,6 +24,10 @@ export class PostController {
             const content = this.getBodyString(req.body?.content);
             const imageBuffer = this.getImageBuffers(req);
 
+            if (content.trim() === "") {
+                res.status(400).json({ message: "Content is required" });
+                return;
+            }
             const createdPost = await this.postUseCase.createPost({
                 authorId: authUser.userId,
                 content,
@@ -333,6 +337,10 @@ export class PostController {
 
     private getBodyString(value: unknown): string {
         return typeof value === "string" ? value : "";
+    }
+    private getOptionalBodyString(value: unknown): string | undefined {
+        const parsed = this.getBodyString(value).trim();
+        return parsed || undefined;
     }
 
     private getQueryString(value: unknown): string | undefined {

@@ -28,7 +28,7 @@ const userController = new UserController(userUseCase);
 //get profile user info by email
 userRoutes.get("/:email", userController.findByEmail);
 userRoutes.get("/search/:query", userController.searchUsers);
-//id here is the id of user logged in, not the id of the user to get info of
+//variable name avatar in body is set by the upload middleware
 //change avatar
 userRoutes.patch("/:id/avatar", uploadAvatarMiddleware, userController.updateAvatar);
 //update profile (username, bio)

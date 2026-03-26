@@ -3,6 +3,7 @@ import {
     type UserRepository,
     type CreateUserRepositoryInput,
     type UpdateUserRepositoryInput,
+    type UserMediaAsset,
 } from '../../../../domain/repositories/user.repository.js';
 import { FollowEntity } from '../../../../domain/entities/follow.entity.js';
 import {
@@ -40,14 +41,15 @@ class FollowEntityMapper {
 
 export class PrismaUserRepository implements UserRepository {
 
-    async searchUsersByUsernameOrEmail(trimmedQuery: string): Promise<UserEntity[]> {
-        const records= await prisma.user.findMany({
+    async searchUsersByUsernameOrEmail(trimmedQuery: string, searchingUserId: string): Promise<UserEntity[]> {
+        const records = await prisma.user.findMany({
             where: {
+                id: { not: searchingUserId },
                 OR: [
                     { username: { contains: trimmedQuery, mode: 'insensitive' } },
-                    { email: { contains: trimmedQuery, mode: 'insensitive' } }
-                ]
-            }
+                    { email: { contains: trimmedQuery, mode: 'insensitive' } },
+                ],
+            },
         });
         return records.map(UserEntityMapper.toDomain);
     }
@@ -151,6 +153,54 @@ export class PrismaUserRepository implements UserRepository {
         }
         await prisma.user.delete({
             where: { id },
+        });
+    }
+
+    async deleteAndGetMediaAssets(id: string): Promise<UserMediaAsset[]> {
+        return prisma.$transaction(async (tx) => {
+            const existingUser = await tx.user.findUnique({
+                where: { id },
+                select: { public_id: true },
+            });
+
+            if (!existingUser) {
+                throw new Error('User not found');
+            }
+
+            const [postMedia, commentMedia, messageMedia] = await Promise.all([
+                tx.postMedia.findMany({
+                    where: { post: { author_id: id } },
+                    select: { public_id: true, media_type: true },
+                }),
+                tx.commentMedia.findMany({
+                    where: { comment: { user_id: id } },
+                    select: { public_id: true, media_type: true },
+                }),
+                tx.messageMedia.findMany({
+                    where: { message: { sender_id: id } },
+                    select: { public_id: true, media_type: true },
+                }),
+            ]);
+
+            await tx.user.delete({
+                where: { id },
+            });
+
+            const mediaAssets: UserMediaAsset[] = [];
+
+            if (existingUser.public_id) {
+                mediaAssets.push({
+                    publicId: existingUser.public_id,
+                    mediaType: 'image',
+                });
+            }
+
+            const mappedAssets = [...postMedia, ...commentMedia, ...messageMedia].map((asset) => ({
+                publicId: asset.public_id,
+                mediaType: asset.media_type.toLowerCase() === 'video' ? 'video' : 'image',
+            } as UserMediaAsset));
+
+            return [...mediaAssets, ...mappedAssets];
         });
     }
 

@@ -101,22 +101,23 @@ export interface ChatRepository {
 	// Get conversation details along with its users
 	findConversationWithUsers(conversationId: string): Promise<ConversationWithUsersRepositoryResult>;
 
-    // Sub-domain: ConversationUser
-    addUsersToConversation(conversationId: string, userIds: string[]): Promise<void>;
+	// Sub-domain: ConversationUser
+	addUsersToConversation(conversationId: string, userIds: string[]): Promise<void>;
 	removeUsersFromConversation(conversationId: string, userIds: string[]): Promise<void>;
-    isUserInConversation(conversationId: string, userId: string): Promise<boolean>;
+	isUserInConversation(conversationId: string, userId: string): Promise<boolean>;
 	leaveConversation(conversationId: string, userId: string): Promise<void>;
 	isAdmin(conversationId: string, userId: string): Promise<boolean>;
 	// grantAdmin(conversationId: string, userId: string): Promise<void>;
 	// revokeAdmin(conversationId: string, userId: string): Promise<void>;
 	transferAdmin(conversationId: string, fromUserId: string, toUserId: string): Promise<void>;
-    
-    // Sub-domain: Message
-    createMessage(input: CreateMessageRepositoryInput): Promise<MessageEntity>;
-    createMessageWithMedia(input: CreateMessageWithMediaRepositoryInput): Promise<MessageWithMediaRepositoryResult>;
+
+	// Sub-domain: Message
+	getAllMessagesWithMedia(conversationId: string): Promise<MessageMediaEntity[]>;
+	createMessage(input: CreateMessageRepositoryInput): Promise<MessageEntity>;
+	createMessageWithMedia(input: CreateMessageWithMediaRepositoryInput): Promise<MessageWithMediaRepositoryResult>;
 	findMessageById(messageId: string): Promise<MessageEntity | null>;
-    updateMessage(messageId: string, input: UpdateMessageRepositoryInput): Promise<MessageEntity>;
+	updateMessage(messageId: string, input: UpdateMessageRepositoryInput): Promise<MessageEntity>;
 	findMessages(query: FindMessagesQuery): Promise<FindMessagesResult>;
-    deleteMessage(messageId: string): Promise<void>;
+	deleteMessage(messageId: string): Promise<void>;
 	//displayMessages(conversationId: string): Promise<MessageWithMediaRepositoryResult[]>;
 }
