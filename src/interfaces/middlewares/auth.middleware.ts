@@ -5,7 +5,7 @@ export interface AuthenticatedRequest extends Request {
 	authUser: AccessTokenPayload;
 }
 
-export function createAuthMiddleware(jwtService: JwtService) {
+export function authMiddleware(jwtService: JwtService) {
 	return (
 		req: Request,
 		res: Response,

@@ -5,6 +5,7 @@ import express, {
     type NextFunction
 } from 'express';
 import cors from 'cors';
+import cookieParser from "cookie-parser";
 import apiRoutes from './interfaces/routes/index.js';
 
 const app = express();
@@ -12,18 +13,32 @@ const app = express();
 // Config CORS
 const corsOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
     .split(",").map(url => url.trim());
-    
-const corsOptions = {
+
+const commonCorsOptions = {
     origin: corsOrigins,
-    credentials: true, // Allow cookies
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     optionsSuccessStatus: 200,
 };
+const corsOptions = {
+    ...commonCorsOptions,
+    credentials: false,
+};
+//Cors options for routes that require cookies (login, refresh token, logout)
+const cookieCorsOptions = {
+    ...commonCorsOptions,
+    credentials: true,
+};
 
 //middlewares
 app.use(cors(corsOptions));
+//Need CORS with credentials to allow cookies to be sent and received from the frontend
+app.use("/api/auth/login", cors(cookieCorsOptions));
+app.use("/api/auth/refresh-token", cors(cookieCorsOptions));
+app.use("/api/auth/logout", cors(cookieCorsOptions));
+
 app.use(express.json());
+app.use(cookieParser());
 
 //health check endpoint
 app.get('/health', (req: Request, res: Response) => {

@@ -1,4 +1,4 @@
-import { type NextFunction, type Request, type Response } from "express";
+import { type NextFunction, type Request, type Response, type CookieOptions } from "express";
 import {
     AuthInvalidCredentialsError,
     AuthUseCase,
@@ -10,7 +10,11 @@ import {
     UserUseCase,
 } from "../../usecases/users/users.usecases.js";
 
+const REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
+const REFRESH_TOKEN_COOKIE_PATH = "/api/auth/refresh-token";
+
 export class AuthController {
+
     constructor(
         private readonly userUseCase: UserUseCase,
         private readonly authUseCase: AuthUseCase,
@@ -47,6 +51,39 @@ export class AuthController {
             next(error);
         }
     };
+    refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+            if (!refreshToken || refreshToken === "undefined") {
+                res.status(400).json({ message: "Refresh token is required" });
+                return;
+            }
+            const accessToken = this.authUseCase.getAccessTokenFromRefreshToken(refreshToken);
+            res.status(200).json({ accessToken });
+        } catch (error) {
+            if (error instanceof AuthValidationError) {
+                res.status(400).json({ message: error.message });
+                return;
+            }
+            next(error);
+        }
+    };
+
+    logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            // need match cookie created to ensure cookie is cleared in the browser
+            res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "strict",
+                path: REFRESH_TOKEN_COOKIE_PATH,
+            });
+
+            res.status(200).json({ message: "Logged out successfully" });
+        } catch (error) {
+            next(error);
+        }
+    };
     verifyRegistrationToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const token = this.getBodyString(req.params?.token).trim();
@@ -79,11 +116,7 @@ export class AuthController {
             next(error);
         }
     };
-    login = async (
-        req: Request,
-        res: Response,
-        next: NextFunction,
-    ): Promise<void> => {
+    login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const email = this.getBodyString(req.body?.email);
             const password = this.getBodyString(req.body?.password);
@@ -92,8 +125,21 @@ export class AuthController {
                 email,
                 password,
             });
-
-            res.status(200).json({ data: loginResult });
+            // Set refresh token in HttpOnly cookie
+            const cookieOptions: CookieOptions = {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "strict",
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                // Ensure the cookie is only sent to the refresh token endpoint
+                path: REFRESH_TOKEN_COOKIE_PATH,
+            };
+            res.cookie(REFRESH_TOKEN_COOKIE_NAME, loginResult.refreshToken, cookieOptions);
+            const responseData = {
+                accessToken: loginResult.accessToken,
+                user: loginResult.user,
+            };
+            res.status(200).json({ data: responseData });
         } catch (error) {
             if (error instanceof AuthValidationError) {
                 res.status(400).json({ message: error.message });
@@ -108,6 +154,7 @@ export class AuthController {
             next(error);
         }
     };
+
     requestRefreshPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const email = this.getBodyString(req.query?.email);
@@ -148,4 +195,5 @@ export class AuthController {
     private getBodyString(value: unknown): string {
         return typeof value === "string" ? value : "";
     }
+
 }

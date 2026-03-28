@@ -81,5 +81,17 @@ export class AuthUseCase {
                 email: existingUser.email,
             },
         };
-    }        
+    }    
+    getAccessTokenFromRefreshToken(refreshToken: string): string {
+        try {
+            const payload = this.jwtService.verifyRefreshToken(refreshToken);
+            return this.jwtService.generateAccessToken({
+                userId: payload.userId,
+                username: payload.username,
+                email: payload.email,
+            });
+        } catch (error) {
+            throw new AuthValidationError("Invalid or expired refresh token");
+        }
+    }    
 }

@@ -1,6 +1,6 @@
 import { Router } from "express";
 //middlewares jwt 
-import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { tokenService } from "../../infrastructure/encryption/jwt.service.js";
 
 //feature routes
@@ -10,7 +10,7 @@ import testRoute from "./test.routes.js";
 import userRoutes from "./users.routes.js";
 import chatRoutes from "./chats.route.js";
 
-const AuthMiddleware = createAuthMiddleware(tokenService);
+const AuthMiddleware = authMiddleware(tokenService);
 
 const apiRoutes = Router();
 

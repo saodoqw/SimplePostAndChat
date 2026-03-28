@@ -30,5 +30,8 @@ authRoutes.get("/verify-email/:token", authController.verifyRegistrationToken);
 authRoutes.post("/request-password-reset", authController.requestRefreshPassword);
 // token in params, new password in body
 authRoutes.post("/reset-password/:token", authController.verifyPasswordResetToken);
-//
+// refresh access token
+authRoutes.post("/refresh-token", authController.refreshToken);
+authRoutes.post("/logout", authController.logout);
+
 export default authRoutes;
