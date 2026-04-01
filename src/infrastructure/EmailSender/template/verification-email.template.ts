@@ -1,47 +1,57 @@
 function escapeHtml(value: string): string {
-		return value
-				.replace(/&/g, "&amp;")
-				.replace(/</g, "&lt;")
-				.replace(/>/g, "&gt;")
-				.replace(/\"/g, "&quot;")
-				.replace(/'/g, "&#39;");
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/\"/g, "&quot;")
+		.replace(/'/g, "&#39;");
 }
 
-function buildVerificationUrl(token: string): string {
-		const frontendUrl = process.env.FRONTEND_URL;
+function normalizeRequiredString(value: string | undefined, fieldName: string): string {
+	if (typeof value !== "string") {
+		throw new Error(`${fieldName} is required`);
+	}
 
-		if (!frontendUrl) {
-				throw new Error("FRONTEND_URL is missing in .env");
-		}
+	const normalizedValue = value.trim();
+	if (!normalizedValue) {
+		throw new Error(`${fieldName} is required`);
+	}
 
-		const normalizedToken = token.trim();
-
-		if (!normalizedToken) {
-				throw new Error("Verification token is required");
-		}
-
-		const url = new URL("/verify-email", frontendUrl);
-		url.searchParams.set("token", normalizedToken);
-
-		return url.toString();
+	return normalizedValue;
 }
 
-export function buildVerificationEmailTemplate(token: string): {
-		text: string;
-		html: string;
+function buildVerificationUrl(token: string | undefined, email: string | undefined): string {
+	const frontendUrl = process.env.FRONTEND_URL;
+
+	if (!frontendUrl) {
+		throw new Error("FRONTEND_URL is missing in .env");
+	}
+
+	const normalizedToken = normalizeRequiredString(token, "Verification token");
+	const normalizedEmail = normalizeRequiredString(email, "Email");
+
+	const url = new URL("/verify-email", frontendUrl);
+	url.searchParams.set("token", normalizedToken);
+	url.searchParams.set("email", normalizedEmail);
+	return url.toString();
+}
+
+export function buildVerificationEmailTemplate(token: string, email: string): {
+	text: string;
+	html: string;
 } {
-		const verificationUrl = buildVerificationUrl(token);
-		const escapedUrl = escapeHtml(verificationUrl);
+	const verificationUrl = buildVerificationUrl(token, email);
+	const escapedUrl = escapeHtml(verificationUrl);
 
-		const text = [
-				"Welcome to Simple Post and Chat!",
-				"Please verify your email by opening the link below:",
-				verificationUrl,
-				"",
-				"If you did not create this account, you can safely ignore this email.",
-		].join("\n");
+	const text = [
+		"Welcome to Simple Post and Chat!",
+		"Please verify your email by opening the link below:",
+		verificationUrl,
+		"",
+		"If you did not create this account, you can safely ignore this email.",
+	].join("\n");
 
-		const html = `
+	const html = `
 <!doctype html>
 <html lang="en">
 <head>
@@ -80,5 +90,5 @@ export function buildVerificationEmailTemplate(token: string): {
 </html>
 `.trim();
 
-		return { text, html };
+	return { text, html };
 }

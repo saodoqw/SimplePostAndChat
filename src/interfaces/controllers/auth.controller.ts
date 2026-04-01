@@ -75,7 +75,7 @@ export class AuthController {
             res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
-                sameSite: "strict",
+                sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
                 path: REFRESH_TOKEN_COOKIE_PATH,
             });
 
@@ -129,7 +129,7 @@ export class AuthController {
             const cookieOptions: CookieOptions = {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
-                sameSite: "strict",
+                sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
                 maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
                 // Ensure the cookie is only sent to the refresh token endpoint
                 path: REFRESH_TOKEN_COOKIE_PATH,

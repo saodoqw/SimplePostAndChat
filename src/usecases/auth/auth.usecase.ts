@@ -11,6 +11,7 @@ export interface AuthUserOutput {
     id: string;
     username: string;
     email: string;
+    avatarUrl: string;
 }
 
 export interface LoginOutput {
@@ -38,11 +39,11 @@ export class AuthUseCase {
         private readonly userRepository: UserRepository,
         private readonly cryptionService: CryptionService,
         private readonly jwtService: JwtService,
-    ) {}
+    ) { }
 
     async login(input: LoginInput): Promise<LoginOutput> {
-        const email = input.email.trim().toLowerCase();
-        const password = input.password;
+        const email = this.normalizeRequiredString(input.email, "email").toLowerCase();
+        const password = this.normalizeRequiredString(input.password, "password");
 
         if (!email) {
             throw new AuthValidationError("email is required");
@@ -79,9 +80,10 @@ export class AuthUseCase {
                 id: existingUser.id,
                 username: existingUser.username,
                 email: existingUser.email,
+                avatarUrl: existingUser.avatarUrl || "",
             },
         };
-    }    
+    }
     getAccessTokenFromRefreshToken(refreshToken: string): string {
         try {
             const payload = this.jwtService.verifyRefreshToken(refreshToken);
@@ -93,5 +95,18 @@ export class AuthUseCase {
         } catch (error) {
             throw new AuthValidationError("Invalid or expired refresh token");
         }
-    }    
+    }
+
+    private normalizeRequiredString(value: string, fieldName: string): string {
+        if (typeof value !== "string") {
+            throw new AuthValidationError(`${fieldName} is required`);
+        }
+
+        const normalizedValue = value.trim();
+        if (!normalizedValue) {
+            throw new AuthValidationError(`${fieldName} is required`);
+        }
+
+        return normalizedValue;
+    }
 }

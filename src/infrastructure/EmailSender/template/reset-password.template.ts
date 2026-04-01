@@ -7,30 +7,40 @@ function escapeHtml(value: string): string {
 		.replace(/'/g, "&#39;");
 }
 
-function buildResetPasswordUrl(token: string): string {
+function normalizeRequiredString(value: string | undefined, fieldName: string): string {
+	if (typeof value !== "string") {
+		throw new Error(`${fieldName} is required`);
+	}
+
+	const normalizedValue = value.trim();
+	if (!normalizedValue) {
+		throw new Error(`${fieldName} is required`);
+	}
+
+	return normalizedValue;
+}
+
+function buildResetPasswordUrl(token: string | undefined, email: string | undefined): string {
 	const frontendUrl = process.env.FRONTEND_URL;
 
 	if (!frontendUrl) {
 		throw new Error("FRONTEND_URL is missing in .env");
 	}
 
-	const normalizedToken = token.trim();
-
-	if (!normalizedToken) {
-		throw new Error("Reset password token is required");
-	}
-
+	const normalizedToken = normalizeRequiredString(token, "Reset password token");
+	const normalizedEmail = normalizeRequiredString(email, "Email");
 	const url = new URL("/reset-password", frontendUrl);
 	url.searchParams.set("token", normalizedToken);
+	url.searchParams.set("email", normalizedEmail);
 
 	return url.toString();
 }
 
-export function buildPasswordResetEmailTemplate(token: string): {
+export function buildPasswordResetEmailTemplate(token: string, email: string): {
 	text: string;
 	html: string;
 } {
-	const resetUrl = buildResetPasswordUrl(token);
+	const resetUrl = buildResetPasswordUrl(token, email);
 	const escapedUrl = escapeHtml(resetUrl);
 
 	const text = [

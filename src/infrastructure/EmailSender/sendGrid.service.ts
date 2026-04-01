@@ -40,13 +40,13 @@ export interface SendGridService {
     }
 
     async sendVerificationEmailWithTemplate(to: string, token: string): Promise<void> {
-        const { text, html } = buildVerificationEmailTemplate(token);
+        const { text, html } = buildVerificationEmailTemplate(token, to);
         const message = this.buildMessage(to, "Verify your email", text, html);
         await this.sendMessage(message, "Verification email sent");
     }
 
     async sendPasswordResetEmailWithTemplate(to: string, token: string): Promise<void> {
-        const { text, html } = buildPasswordResetEmailTemplate(token);
+        const { text, html } = buildPasswordResetEmailTemplate(token, to);
         const message = this.buildMessage(to, "Reset your password", text, html);
         await this.sendMessage(message, "Password reset email sent");
     }

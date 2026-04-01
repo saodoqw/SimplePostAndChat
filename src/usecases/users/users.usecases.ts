@@ -67,7 +67,7 @@ export class UserUseCase {
     ) { }
 
     async searchUsers(query: string, searchingUserId: string) {
-        const trimmedQuery = query.trim();
+        const trimmedQuery = this.normalizeRequiredString(query, "query");
         if (!trimmedQuery) {
             return [];
         }
@@ -81,9 +81,9 @@ export class UserUseCase {
     async createTemporaryUser(
         input: CreateUserUseCaseInput
     ): Promise<void> {
-        const username = input.username.trim();
-        const email = input.email.trim().toLowerCase();
-        const password = input.password;
+        const username = this.normalizeRequiredString(input.username, "username");
+        const email = this.normalizeRequiredString(input.email, "email").toLowerCase();
+        const password = this.normalizeRequiredString(input.password, "password");
 
         try {
             UserEntity.validateForCreation(username, email, password);
@@ -130,11 +130,13 @@ export class UserUseCase {
     }
     //Verify user and save to database, then delete the temporary user from Redis
     async verifyEmail(email: string, token: string): Promise<void> {
-        const tempUser = await this.redisService.get<UserCreateEntity>(`tempUser:${email}`);
+        const normalizedEmail = this.normalizeRequiredString(email, "email");
+        const normalizedToken = this.normalizeRequiredString(token, "token");
+        const tempUser = await this.redisService.get<UserCreateEntity>(`tempUser:${normalizedEmail}`);
         if (!tempUser) {
             throw new CreateUserValidationError('Invalid or expired registration token');
         }
-        if (!this.cryptionService.verifyToken(token, tempUser.registrationToken)) {
+        if (!this.cryptionService.verifyToken(normalizedToken, tempUser.registrationToken)) {
             throw new CreateUserValidationError('Invalid registration token');
         }
         await this.userRepository.create({
@@ -142,7 +144,7 @@ export class UserUseCase {
             email: tempUser.email,
             passwordHash: tempUser.passwordHash,
         });
-        await this.redisService.del(`tempUser:${email}`);
+        await this.redisService.del(`tempUser:${normalizedEmail}`);
     }
 
     async getUserByEmail(email: string): Promise<UserEntity | null> {
@@ -237,29 +239,38 @@ export class UserUseCase {
     }
     //create temp request for changing password, send email with token, verify token and change password
     async requestPasswordReset(email: string): Promise<void> {
-        const user = await this.userRepository.findByEmail(email);
+        const normalizedEmail = this.normalizeRequiredString(email, "email");
+        const user = await this.userRepository.findByEmail(normalizedEmail);
         if (!user) {
             throw new Error("User not found");
         }
+        const existingToken = await this.redisService.get<string>(`passwordReset:${normalizedEmail}`);
+        if (existingToken) {
+            // If there's already a valid token, don't create a new one or send another email
+            return;
+        }
         const resetToken = this.cryptionService.createToken();
-        await this.redisService.set(`passwordReset:${email}`, resetToken, 60 * 15); // 15 minutes expiration
-        await this.sendGridService.sendPasswordResetEmailWithTemplate(email, resetToken);
+        await this.redisService.set(`passwordReset:${normalizedEmail}`, resetToken, 60 * 15); // 15 minutes expiration
+        await this.sendGridService.sendPasswordResetEmailWithTemplate(normalizedEmail, resetToken);
     }
 
     async resetPassword(email: string, token: string, newPassword: string): Promise<void> {
-        const storedToken = await this.redisService.get<string>(`passwordReset:${email}`);
+        const normalizedEmail = this.normalizeRequiredString(email, "email");
+        const normalizedToken = this.normalizeRequiredString(token, "token");
+        const normalizedNewPassword = this.normalizeRequiredString(newPassword, "newPassword");
+        const storedToken = await this.redisService.get<string>(`passwordReset:${normalizedEmail}`);
 
-        if (!storedToken || !this.cryptionService.verifyToken(token, storedToken)) {
+        if (!storedToken || !this.cryptionService.verifyToken(normalizedToken, storedToken)) {
             throw new Error("Invalid or expired password reset token");
         }
-        const user = await this.userRepository.findByEmail(email);
+        const user = await this.userRepository.findByEmail(normalizedEmail);
         if (!user) {
             throw new Error("User not found");
             return;
         }
-        const newPasswordHash = await this.cryptionService.hashPassword(newPassword);
+        const newPasswordHash = await this.cryptionService.hashPassword(normalizedNewPassword);
         await this.userRepository.update(user.id, { passwordHash: newPasswordHash });
-        await this.redisService.del(`passwordReset:${email}`);
+        await this.redisService.del(`passwordReset:${normalizedEmail}`);
     }
     // Follow/unfollow users
     async followUser(followerId: string, followingId: string): Promise<void> {
@@ -336,5 +347,18 @@ export class UserUseCase {
             avatarUrl: user.avatarUrl,
             bio: user.bio,
         }));
+    }
+
+    private normalizeRequiredString(value: string, fieldName: string): string {
+        if (typeof value !== "string") {
+            throw new CreateUserValidationError(`${fieldName} is required`);
+        }
+
+        const normalizedValue = value.trim();
+        if (!normalizedValue) {
+            throw new CreateUserValidationError(`${fieldName} is required`);
+        }
+
+        return normalizedValue;
     }
 }
