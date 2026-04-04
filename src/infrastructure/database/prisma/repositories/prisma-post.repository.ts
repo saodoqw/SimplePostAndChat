@@ -15,10 +15,10 @@ import {
     type PostCommentWithMediaRepositoryResult,
     type PostRepository,
     type PostSortBy,
+    type PostWithStatsRepositoryResult,
     type PostWithMediaRepositoryResult,
     type SortOrder,
     type UpdatePostRepositoryInput,
-    type UpdatePostWithMediaRepositoryInput,
 } from "../../../../domain/repositories/post.repository.js";
 import {
     type Comment as PrismaCommentRecord,
@@ -221,17 +221,37 @@ export class PrismaPostRepository implements PostRepository {
             }, take: limit + 1,
             orderBy: this.buildPostOrderBy(sortBy, sortOrder),
             ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-            include: { media: true },
+            include: {
+                media: true,
+                PostLike: query.authUserId
+                    ? {
+                        where: { user_id: query.authUserId },
+                        take: 1,
+                        select: { id: true },
+                    }
+                    : false,
+                _count: {
+                    select: {
+                        PostLike: true,
+                        comments: true,
+                    },
+                },
+            },
         });
 
         const hasNextCursor = records.length > limit;
         // Slice the records to return only the requested page size
         const pageRecords = hasNextCursor ? records.slice(0, limit) : records;
+        const data: PostWithStatsRepositoryResult[] = pageRecords.map((record) => ({
+            post: PostEntityMapper.toDomain(record),
+            media: record.media.map((mediaRecord) => PostMediaEntityMapper.toDomain(mediaRecord)),
+            likeCount: record._count.PostLike,
+            commentsCount: record._count.comments,
+            isLikedByAuthUser: query.authUserId ? record.PostLike.length > 0 : false,
+        }));
+
         return {
-            data: pageRecords.map((record) => ({
-                post: PostEntityMapper.toDomain(record),
-                media: record.media.map((mediaRecord) => PostMediaEntityMapper.toDomain(mediaRecord)),
-            })),
+            data,
             nextCursor: hasNextCursor && pageRecords.length ? pageRecords[pageRecords.length - 1].id : undefined,
             limit,
             sortBy,

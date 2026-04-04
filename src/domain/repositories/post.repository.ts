@@ -21,6 +21,7 @@ export interface UpdatePostRepositoryInput {
 
 export interface FindPostQuery {
     authorId?: string;
+    authUserId?: string;
     cursor?: string;
     limit: number;
     sortBy?: PostSortBy;
@@ -37,11 +38,13 @@ export interface PostWithMediaRepositoryResult {
     media: PostMediaEntity[];
 }
 
-export interface CreatePostWithMediaRepositoryInput extends CreatePostRepositoryInput {
-    media: MediaInput[];
+export interface PostWithStatsRepositoryResult extends PostWithMediaRepositoryResult {
+    likeCount: number;
+    commentsCount: number;
+    isLikedByAuthUser: boolean;
 }
 
-export interface UpdatePostWithMediaRepositoryInput extends UpdatePostRepositoryInput {
+export interface CreatePostWithMediaRepositoryInput extends CreatePostRepositoryInput {
     media: MediaInput[];
 }
 
@@ -52,7 +55,7 @@ export interface MediaInput {
 }
 
 export interface FindPostsResult {
-    data: PostWithMediaRepositoryResult[];
+    data: PostWithStatsRepositoryResult[];
     nextCursor?: string;
     limit: number;
     sortBy: PostSortBy;
@@ -95,7 +98,6 @@ export interface PostRepository {
 
     //Post create & update with media (images/videos)
     createPostWithMedia(data: CreatePostWithMediaRepositoryInput): Promise<PostWithMediaRepositoryResult>;
-    // updatePostWithMedia(postId: string, data: UpdatePostWithMediaRepositoryInput): Promise<PostWithMediaRepositoryResult>;
 
     // Find Posts
     findById(postId: string): Promise<PostWithMediaRepositoryResult | null>;

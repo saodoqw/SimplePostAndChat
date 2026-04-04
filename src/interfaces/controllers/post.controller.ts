@@ -117,7 +117,12 @@ export class PostController {
                 res.status(400).json({ message: "Post ID is required" });
                 return;
             }
-            const postDetails = await this.postUseCase.findDetailedPostById(postId);
+            const authUser = (req as AuthenticatedRequest).authUser;
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            const postDetails = await this.postUseCase.findDetailedPostById(postId, authUser.userId);
             if (!postDetails) {
                 res.status(404).json({ message: "Post not found" });
                 return;
@@ -135,9 +140,14 @@ export class PostController {
         next: NextFunction,
     ): Promise<void> => {
         try {
+            const authUser = (req as AuthenticatedRequest).authUser;
             const authorId = this.getBodyString(req.params.userId).trim();
             if (!authorId) {
                 res.status(400).json({ message: "User ID is required" });
+                return;
+            }
+            if (!authUser?.userId) {
+                res.status(401).json({ message: "Unauthorized" });
                 return;
             }
 
@@ -148,6 +158,7 @@ export class PostController {
 
             const userPosts = await this.postUseCase.findManyPosts({
                 authorId,
+                authUserId: authUser.userId,
                 cursor,
                 limit,
                 sortBy,

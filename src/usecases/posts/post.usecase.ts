@@ -32,9 +32,20 @@ export interface postDetails {
     content: string;
     imageUrls?: string[];
     createdAt: Date;
+    likeCount: number;
+    commentsCount: number;
+    isLikedByAuthUser: boolean;
+}
+interface updatePostOutput {
+    postId: string;
+    authorId: string;
+    content: string;
+    imageUrls?: string[];
+    createdAt: Date;
 }
 export interface findUserPostsInput {
     authorId: string;
+    authUserId?: string;
     cursor?: string;
     limit: number;
     sortBy?: "created_at" | "updated_at";
@@ -132,7 +143,7 @@ export class PostUseCase {
         }
     }
 
-    async updatePost(postId: string, content: string, userId: string): Promise<postDetails> {
+    async updatePost(postId: string, content: string, userId: string): Promise<updatePostOutput> {
         const existingPost = await this.postRepository.findById(postId);
         if (!existingPost) {
             throw new Error("Post not found");
@@ -174,11 +185,18 @@ export class PostUseCase {
         await this.postRepository.deleteById(postId);
     }
 
-    async findDetailedPostById(postId: string): Promise<postDetails> {
+    async findDetailedPostById(postId: string, userId: string): Promise<postDetails> {
         const existingPost = await this.postRepository.findById(postId);
         if (!existingPost) {
             throw new Error("Post not found");
         }
+        const [likeCount, commentsCount] = await Promise.all([
+            this.postRepository.findLikesCount(postId),
+            this.postRepository.findCommentCount(postId),
+        ]);
+        const isLikedByAuthUser = userId
+            ? await this.postRepository.isPostLikedByUser(postId, userId)
+            : false;
 
         return {
             postId: existingPost.post.id,
@@ -186,11 +204,15 @@ export class PostUseCase {
             content: existingPost.post.content,
             imageUrls: existingPost.media?.filter((m) => m.mediaType === "image").map((m) => m.mediaUrl) ?? [],
             createdAt: existingPost.post.created_at,
+            likeCount,
+            commentsCount,
+            isLikedByAuthUser,
         };
     }
     //Find posts by authorId with pagination and sorting
     async findManyPosts(query: findUserPostsInput): Promise<UserPostsResult> {
         const authorId = query.authorId?.trim();
+        const authUserId = query.authUserId?.trim();
         const cursor = query.cursor?.trim() || undefined;
         const limit = Number(query.limit);
 
@@ -203,22 +225,28 @@ export class PostUseCase {
 
         const result = await this.postRepository.findManyPosts({
             authorId,
+            authUserId,
             cursor,
             limit,
             sortBy: query.sortBy ?? "created_at",
             sortOrder: query.sortOrder ?? "desc",
         });
 
+        const posts = (result.data ?? []).map((post) => ({
+            postId: post.post.id,
+            authorId: post.post.author_id,
+            content: post.post.content,
+            imageUrls: post.media?.filter((m) => m.mediaType === "image").map((m) => m.mediaUrl) ?? [],
+            createdAt: post.post.created_at,
+            likeCount: post.likeCount ?? 0,
+            commentsCount: post.commentsCount ?? 0,
+            isLikedByAuthUser: post.isLikedByAuthUser,
+        }));
+
         return {
             authorId,
             nextCursor: result.nextCursor,
-            posts: (result.data ?? []).map((post) => ({
-                postId: post.post.id,
-                authorId: post.post.author_id,
-                content: post.post.content,
-                imageUrls: post.media?.filter((m) => m.mediaType === "image").map((m) => m.mediaUrl) ?? [],
-                createdAt: post.post.created_at,
-            })),
+            posts,
         };
     }
     // Like a post, if the user has already liked it, then unlike it
@@ -244,6 +272,7 @@ export class PostUseCase {
         }
         return !hasLiked;
     }
+
     async isPostLikedByUser(postId: string, userId: string): Promise<boolean> {
         const existingPost = await this.postRepository.findById(postId);
         if (!existingPost) {
@@ -259,6 +288,7 @@ export class PostUseCase {
         const result = await this.postRepository.findCommentCount(postId);
         return result;
     }
+
     // Create a comment for a post, if imageBuffer is provided, upload the image and create a comment with media
     async createComment(data: createCommentInput): Promise<postCommentDetails> {
         const postId = data.postId?.trim();
@@ -362,14 +392,14 @@ export class PostUseCase {
         if (existingComment.comment.userId !== userId) {
             throw new Error("Unauthorized: You can only delete your own comments");
         }
-        try{
+        try {
             await Promise.all(existingComment.media.map(async (media) => {
-                if(media.publicId){
+                if (media.publicId) {
                     await this.cloudinaryService.deleteImage(media.publicId);
-                }   
+                }
             }));
         }
-        catch(error){
+        catch (error) {
             console.error("Failed to delete comment media from Cloudinary:", error);
         }
         await this.postRepository.deleteComment(commentId);
