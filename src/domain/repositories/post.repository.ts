@@ -33,9 +33,16 @@ export interface CommentWithMediaRepositoryResult {
     media: CommentMediaEntity[];
 }
 
+export interface PostAuthorSummary {
+    id: string;
+    username: string;
+    avatarUrl: string | null;
+}
+
 export interface PostWithMediaRepositoryResult {
     post: PostEntity;
     media: PostMediaEntity[];
+    author?: PostAuthorSummary;
 }
 
 export interface PostWithStatsRepositoryResult extends PostWithMediaRepositoryResult {

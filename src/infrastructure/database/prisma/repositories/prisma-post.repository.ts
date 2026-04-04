@@ -197,7 +197,16 @@ export class PrismaPostRepository implements PostRepository {
     async findById(postId: string): Promise<PostWithMediaRepositoryResult | null> {
         const record = await prisma.post.findUnique({
             where: { id: postId },
-            include: { media: true },
+            include: {
+                media: true,
+                author: {
+                    select: {
+                        id: true,
+                        username: true,
+                        avatar_url: true,
+                    },
+                },
+            },
         });
 
         if (!record) {
@@ -207,6 +216,11 @@ export class PrismaPostRepository implements PostRepository {
         return {
             post: PostEntityMapper.toDomain(record),
             media: record.media.map((mediaRecord) => PostMediaEntityMapper.toDomain(mediaRecord)),
+            author: {
+                id: record.author.id,
+                username: record.author.username,
+                avatarUrl: record.author.avatar_url,
+            },
         };
     }
 
@@ -223,6 +237,13 @@ export class PrismaPostRepository implements PostRepository {
             ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
             include: {
                 media: true,
+                author: {
+                    select: {
+                        id: true,
+                        username: true,
+                        avatar_url: true,
+                    },
+                },
                 PostLike: query.authUserId
                     ? {
                         where: { user_id: query.authUserId },
@@ -245,6 +266,11 @@ export class PrismaPostRepository implements PostRepository {
         const data: PostWithStatsRepositoryResult[] = pageRecords.map((record) => ({
             post: PostEntityMapper.toDomain(record),
             media: record.media.map((mediaRecord) => PostMediaEntityMapper.toDomain(mediaRecord)),
+            author: {
+                id: record.author.id,
+                username: record.author.username,
+                avatarUrl: record.author.avatar_url,
+            },
             likeCount: record._count.PostLike,
             commentsCount: record._count.comments,
             isLikedByAuthUser: query.authUserId ? record.PostLike.length > 0 : false,

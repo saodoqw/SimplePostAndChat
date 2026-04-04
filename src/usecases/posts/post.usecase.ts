@@ -29,6 +29,8 @@ export interface createPostWithMediaOutput {
 export interface postDetails {
     postId: string;
     authorId: string;
+    authorUsername?: string;
+    authorAvatarUrl?: string | null;
     content: string;
     imageUrls?: string[];
     createdAt: Date;
@@ -201,6 +203,8 @@ export class PostUseCase {
         return {
             postId: existingPost.post.id,
             authorId: existingPost.post.author_id,
+            authorUsername: existingPost.author?.username,
+            authorAvatarUrl: existingPost.author?.avatarUrl ?? null,
             content: existingPost.post.content,
             imageUrls: existingPost.media?.filter((m) => m.mediaType === "image").map((m) => m.mediaUrl) ?? [],
             createdAt: existingPost.post.created_at,
@@ -235,6 +239,8 @@ export class PostUseCase {
         const posts = (result.data ?? []).map((post) => ({
             postId: post.post.id,
             authorId: post.post.author_id,
+            authorUsername: post.author?.username,
+            authorAvatarUrl: post.author?.avatarUrl ?? null,
             content: post.post.content,
             imageUrls: post.media?.filter((m) => m.mediaType === "image").map((m) => m.mediaUrl) ?? [],
             createdAt: post.post.created_at,
