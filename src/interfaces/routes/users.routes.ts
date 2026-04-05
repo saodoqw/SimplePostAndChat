@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { PrismaUserRepository } from "../../infrastructure/database/prisma/repositories/prisma-user.repository.js";
-import { UserUseCase } from "../../usecases/users/users.usecases.js";
+import { UserUseCase } from "../../application/usecases/users/users.usecases.js";
 import { UserController } from "../controllers/user.controller.js";
 import { cryptionService } from "../../infrastructure/encryption/cryption.service.js";
 import { redisService } from "../../infrastructure/redisService/redis.service.js";

@@ -1,11 +1,8 @@
 import { type Server, type Socket } from "socket.io";
-import { type AccessTokenPayload, tokenService } from "../encryption/jwt.service.js";
-import { cloudinaryService } from "../imageStorage/cloudinary/cloudinary.service.js";
-import { PrismaChatRepository } from "../database/prisma/repositories/prisma-chat.repository.js";
-import { PrismaUserRepository } from "../database/prisma/repositories/prisma-user.repository.js";
-import { ChatUseCase } from "../../usecases/chats/chats.usecases.js";
+import { tokenService } from "../encryption/jwt.service.js";
+import { type AccessTokenPayload } from "../../application/ports/jwt.service.js";
 import { type MessageEntity } from "../../domain/entities/message.entity.js";
-import { type MessageWithMediaRepositoryResult } from "../../domain/repositories/chat.repository.js";
+import { chatUseCase } from "../../bootstrap/chat.bootstrap.js";
 
 interface SocketSuccessResponse<T = unknown> {
     ok: true;
@@ -31,10 +28,6 @@ interface ConversationRoomPayload {
 }
 
 let activeIo: Server | null = null;
-
-const chatRepository = new PrismaChatRepository();
-const userRepository = new PrismaUserRepository();
-const chatUseCase = new ChatUseCase(chatRepository, cloudinaryService, userRepository);
 
 // This function registers all chat-related socket event handlers and middlewares
 export function registerChatSocket(io: Server): void {
@@ -95,7 +88,7 @@ export function registerChatSocket(io: Server): void {
 
 export function emitNewMessageToConversation(
     conversationId: string,
-    createdMessage: MessageEntity | MessageWithMediaRepositoryResult,
+    createdMessage: MessageEntity,
 ): void {
     const normalizedConversationId = conversationId.trim();
     if (!normalizedConversationId) {
@@ -135,13 +128,7 @@ function getConversationRoom(conversationId: string): string {
 }
 
 
-function normalizeCreatedMessage(
-    createdMessage: MessageEntity | MessageWithMediaRepositoryResult,
-): MessageWithMediaRepositoryResult {
-    if ("message" in createdMessage) {
-        return createdMessage;
-    }
-
+function normalizeCreatedMessage(createdMessage: MessageEntity) {
     return {
         message: createdMessage,
         media: [],

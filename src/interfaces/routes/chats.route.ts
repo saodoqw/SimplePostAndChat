@@ -1,18 +1,8 @@
 import { Router } from "express";
-import { PrismaChatRepository } from "../../infrastructure/database/prisma/repositories/prisma-chat.repository.js";
-import { PrismaUserRepository } from "../../infrastructure/database/prisma/repositories/prisma-user.repository.js";
-
-import { cloudinaryService } from "../../infrastructure/imageStorage/cloudinary/cloudinary.service.js";
 import {  uploadChatImageVideoMiddleware } from "../middlewares/upload.middleware.js";
-import { ChatUseCase } from "../../usecases/chats/chats.usecases.js";
-import { ChatController } from "../controllers/chat.controller.js";
+import { chatController } from "../../bootstrap/chat.bootstrap.js";
 
 const chatRoutes = Router();
-
-const chatRepository = new PrismaChatRepository();
-const userRepository = new PrismaUserRepository();
-const chatUseCase = new ChatUseCase(chatRepository, cloudinaryService, userRepository);
-const chatController = new ChatController(chatUseCase);
 
 // Direct conversation endpoints
 //need userId of recipient in body

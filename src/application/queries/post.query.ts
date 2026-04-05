@@ -1,6 +1,6 @@
 
-export type SortOrder = "asc" | "desc";
-export type PostSortBy = "created_at" | "updated_at";
+type SortOrder = "asc" | "desc";
+type PostSortBy = "created_at" | "updated_at";
 
 export interface FindPostsResult {
     data: PostDetailDto[];
@@ -19,11 +19,7 @@ export interface FindPostQuery {
     sortOrder?: SortOrder;
 }
 
-export interface PostAuthorSummary {
-    id: string;
-    username: string;
-    avatarUrl: string | null;
-}
+
 export interface PostDetailDto {
     id: string;
     content: string;

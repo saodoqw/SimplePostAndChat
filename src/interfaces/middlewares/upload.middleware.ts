@@ -62,7 +62,17 @@ export const uploadAvatarMiddleware = avatarUpload.single('avatar');
 export const uploadImageMiddleware = imageUpload.array('images', MAX_IMAGE_FILES);
 export const uploadVideoMiddleware = videoUpload.single('videos');
 // For chat media, we allow both images and videos in the same endpoint, with separate field names
-export const uploadChatImageVideoMiddleware = chatImageVideoUpload.fields([
+const chatUploadHandler = chatImageVideoUpload.fields([
     { name: 'images', maxCount: MAX_CHAT_IMAGE_VIDEO_FILES },
     { name: 'videos', maxCount: MAX_CHAT_IMAGE_VIDEO_FILES },
 ]);
+
+// Wrapper with logging for debugging
+export const uploadChatImageVideoMiddleware = (req: any, res: any, next: any) => {
+    console.log("[UPLOAD_MIDDLEWARE] Before multer - req.body keys:", Object.keys(req.body || {}));
+    chatUploadHandler(req, res, (err) => {
+        console.log("[UPLOAD_MIDDLEWARE] After multer - req.files:", req.files);
+        console.log("[UPLOAD_MIDDLEWARE] Error:", err?.message || "none");
+        next(err);
+    });
+};

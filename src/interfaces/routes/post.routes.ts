@@ -7,7 +7,7 @@ import { PrismaCommentQuery } from "../../infrastructure/database/prisma/queries
 import { cloudinaryService } from "../../infrastructure/imageStorage/cloudinary/cloudinary.service.js";
 import { uploadImageMiddleware } from "../middlewares/upload.middleware.js";
 
-import { PostUseCase } from "../../usecases/posts/post.usecase.js";
+import { PostUseCase } from "../../application/usecases/posts/post.usecase.js";
 import { PostController } from "../controllers/post.controller.js";
 
 const postRoutes = Router();

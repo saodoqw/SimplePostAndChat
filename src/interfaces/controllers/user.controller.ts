@@ -3,7 +3,7 @@ import {
     CreateUserConflictError,
     CreateUserValidationError,
     UserUseCase,
-} from "../../usecases/users/users.usecases.js";
+} from "../../application/usecases/users/users.usecases.js";
 import { type UserEntity } from "../../domain/entities/user.entity.js";
 import { type AuthenticatedRequest } from "../middlewares/auth.middleware.js";
 

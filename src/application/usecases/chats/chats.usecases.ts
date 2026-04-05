@@ -1,19 +1,34 @@
-import { fail } from "node:assert";
 import {
-    type ChatRepository,
+    type ConversationQueryService,
+    type FindConversationsResult,
+    type ConversationWithUsersRepositoryResult as ConversationWithUsersDto,
+} from "../../queries/conservation.query.js";
+import {
+    type FindMessagesResult,
+    type MessageQueryService,
+} from "../../queries/message.query.js";
+import {
+    type ConservationRepository,
     type CreateConversationRepositoryInput,
-} from "../../../domain/repositories/chat.repository.js";
-import { type UserRepository } from "../..//../domain/repositories/user.repository.js";
-import { type ImageStorageService } from '../../ports/image-storage.service.js';
+} from "../../../domain/repositories/conservation.repository.js";
+import { type ConversationMemberRepository } from "../../../domain/repositories/conversationMember.repository.js";
+import { type MessageRepository } from "../../../domain/repositories/message.repository.js";
+import { type UserRepository } from "../../../domain/repositories/user.repository.js";
+import { type MessageEntity } from "../../../domain/entities/message.entity.js";
+import { type ImageStorageService } from "../../ports/image-storage.service.js";
 
 const DEFAULT_DIRECT_CHAT_NAME = "Direct Chat";
 const DEFAULT_GROUP_CHAT_NAME = "New Group";
+
 type UploadableMediaType = "image" | "video";
 
-
-export class ChatUseCase {
+export class ConservationUseCase {
     constructor(
-        private readonly chatRepository: ChatRepository,
+        private readonly conservationRepository: ConservationRepository,
+        private readonly conversationMemberRepository: ConversationMemberRepository,
+        private readonly messageRepository: MessageRepository,
+        private readonly conservationQueryService: ConversationQueryService,
+        private readonly messageQueryService: MessageQueryService,
         private readonly cloudinaryService: ImageStorageService,
         private readonly userRepository: UserRepository,
     ) { }
@@ -36,20 +51,18 @@ export class ChatUseCase {
         const allParticipantIds = [normalizedUserId, ...normalizedParticipantIds];
         await this.ensureUsersExist(allParticipantIds);
 
-        const isGroup = normalizedParticipantIds.length > 1;
-        if (!isGroup) {
+        if (normalizedParticipantIds.length <= 1) {
             throw new Error("Use findOrCreateDirectConversation for direct chats");
         }
+
         const input: CreateConversationRepositoryInput = {
-            name: isGroup
-                ? this.normalizeGroupName(groupName)
-                : DEFAULT_DIRECT_CHAT_NAME,
+            name: this.normalizeGroupName(groupName),
             userIds: allParticipantIds,
-            isGroup,
+            isGroup: true,
             creatorUserId: normalizedUserId,
         };
 
-        return this.chatRepository.createConversation(input);
+        return this.conservationRepository.createConversation(input);
     }
 
     async findOrCreateDirectConversation(userId: string, recipientId: string) {
@@ -57,6 +70,7 @@ export class ChatUseCase {
         if (!normalizedUserId) {
             throw new Error("User ID is required");
         }
+
         const normalizedRecipientId = recipientId.trim();
         if (!normalizedRecipientId) {
             throw new Error("Recipient ID is required");
@@ -68,19 +82,19 @@ export class ChatUseCase {
 
         await this.ensureUsersExist([normalizedUserId, normalizedRecipientId]);
 
-        // Try to find existing direct conversation, otherwise create new one
-        const existingConversation = await this.chatRepository.findDirectConversation(normalizedUserId, normalizedRecipientId);
+        const existingConversation = await this.conservationRepository.findDirectConversation(
+            normalizedUserId,
+            normalizedRecipientId,
+        );
         if (existingConversation) {
             return existingConversation;
         }
 
-        const input: CreateConversationRepositoryInput = {
+        return this.conservationRepository.createConversation({
             name: DEFAULT_DIRECT_CHAT_NAME,
             userIds: [normalizedUserId, normalizedRecipientId],
             isGroup: false,
-        };
-
-        return this.chatRepository.createConversation(input);
+        });
     }
 
     async updateGroupName(conversationId: string, requesterUserId: string, newName: string) {
@@ -88,6 +102,7 @@ export class ChatUseCase {
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+
         await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
 
         const normalizedNewName = newName.trim();
@@ -95,60 +110,32 @@ export class ChatUseCase {
             throw new Error("New group name is required");
         }
 
-        return this.chatRepository.updateConversation(normalizedConversationId, { name: normalizedNewName });
+        return this.conservationRepository.updateConversation(normalizedConversationId, {
+            name: normalizedNewName,
+        });
     }
+
     async deleteConversation(conversationId: string, requesterUserId: string) {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+
         await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
-        await this.deleteImagesInConversation(normalizedConversationId);
-        return this.chatRepository.deleteConversation(normalizedConversationId);
+        await this.conservationRepository.deleteConversation(normalizedConversationId);
     }
 
-    private async deleteImagesInConversation(conversationId: string): Promise<void> {
-        const messagesWithMedia = await this.chatRepository.getAllMessagesWithMedia(conversationId);
-
-        if (!messagesWithMedia.length) {
-            return;
-        }
-        const assetMap = new Map();
-        for (const asset of messagesWithMedia) {
-            const key = `${asset.mediaType}:${asset.publicId}`;
-            if (!assetMap.has(key)) {
-                assetMap.set(key, asset);
-            }
-        }
-        const uniqueAssets = Array.from(assetMap.values());
-
-        const deleteResults = await Promise.allSettled(
-            uniqueAssets.map((asset) =>
-                asset.mediaType === "video"
-                    ? this.cloudinaryService.deleteVideo(asset.publicId)
-                    : this.cloudinaryService.deleteImage(asset.publicId)
-            )
-        );
-        const failedDeletes = deleteResults
-            .map((result, index) => ({ result, asset: uniqueAssets[index] }))
-            .filter((entry) => entry.result.status === "rejected");
-
-        if (failedDeletes.length) {
-            console.error("Failed to delete some cloud assets after user deletion", {
-                failedAssets: failedDeletes.map((entry) => entry.asset.publicId),
-            });
-        }
-    }
-
-    async listUserConversations(userId: string, limit: number, cursor?: string) {
+    async listUserConversations(userId: string, limit: number, cursor?: string): Promise<FindConversationsResult> {
         const normalizedUserId = userId.trim();
         if (!normalizedUserId) {
             throw new Error("User ID is required");
         }
-        if (limit <= 0) {
+
+        if (!Number.isInteger(limit) || limit <= 0) {
             throw new Error("Limit must be greater than 0");
         }
-        return this.chatRepository.findConversations({
+
+        return this.conservationQueryService.findConversations({
             userId: normalizedUserId,
             limit,
             cursor,
@@ -156,19 +143,28 @@ export class ChatUseCase {
             sortOrder: "desc",
         });
     }
-    async displayConversationDetails(conversationId: string, requesterUserId: string) {
+
+    async displayConversationDetails(
+        conversationId: string,
+        requesterUserId: string,
+    ): Promise<ConversationWithUsersDto> {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
-        const conversationWithUsers = await this.chatRepository.findConversationWithUsers(normalizedConversationId);
-        if (!conversationWithUsers) {
+
+        const conversation = await this.conservationQueryService.getConversationById(normalizedConversationId);
+        if (!conversation) {
             throw new Error("Conversation not found");
         }
-        if (!conversationWithUsers.users.some((user) => user.userId === requesterUserId)) {
+
+        const normalizedRequesterUserId = requesterUserId.trim();
+        const isMember = conversation.users.some((user) => user.id === normalizedRequesterUserId);
+        if (!isMember) {
             throw new Error("Forbidden: user is not in conversation");
         }
-        return conversationWithUsers;
+
+        return conversation;
     }
 
     async addParticipants(conversationId: string, requesterUserId: string, participantIds: string[]) {
@@ -176,27 +172,34 @@ export class ChatUseCase {
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+
         const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
         if (!normalizedParticipantIds.length) {
             throw new Error("At least one participant ID is required");
         }
+
         await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
         await this.ensureUsersExist(normalizedParticipantIds);
-        await this.ensureNotAddingExistingParticipants(normalizedConversationId, participantIds);
-        return this.chatRepository.addUsersToConversation(normalizedConversationId, normalizedParticipantIds);
-    }
 
-    private ensureNotAddingExistingParticipants(conversationId: string, participantIds: string[]) {
-        const existingParticipantsPromise = this.chatRepository.findConversationWithUsers(conversationId)
-            .then((conversationWithUsers) => conversationWithUsers.users.map((user) => user.userId));
-        const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
-        const duplicateCheckPromise = existingParticipantsPromise.then((existingParticipantIds) => {
-            const duplicates = normalizedParticipantIds.filter((id) => existingParticipantIds.includes(id));
-            if (duplicates.length) {
-                throw new Error(`The following users are already participants in the conversation: ${duplicates.join(", ")}`);
+        for (const participantId of normalizedParticipantIds) {
+            const isMember = await this.conversationMemberRepository.isUserInConversation(
+                normalizedConversationId,
+                participantId,
+            );
+            if (isMember) {
+                throw new Error(`The following users are already participants in the conversation: ${participantId}`);
             }
-        });
-        return duplicateCheckPromise;
+        }
+
+        await Promise.all(
+            normalizedParticipantIds.map((participantId) =>
+                this.conversationMemberRepository.addMemberToConversation(
+                    normalizedConversationId,
+                    participantId,
+                    false,
+                ),
+            ),
+        );
     }
 
     async removeParticipants(conversationId: string, requesterUserId: string, participantIds: string[]) {
@@ -204,103 +207,128 @@ export class ChatUseCase {
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+
         await this.ensureRequesterIsGroupAdmin(normalizedConversationId, requesterUserId);
 
         const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
         if (!normalizedParticipantIds.length) {
             throw new Error("At least one participant ID is required");
         }
+
         await this.ensureUsersExist(normalizedParticipantIds);
-        await this.ensureNotRemovingNonParticipants(normalizedConversationId, normalizedParticipantIds);
-        return this.chatRepository.removeUsersFromConversation(normalizedConversationId, normalizedParticipantIds);
-    }
-    private ensureNotRemovingNonParticipants(conservationId: string, participantIds: string[]) {
-        const existingParticipantsPromise = this.chatRepository.findConversationWithUsers(conservationId)
-            .then((conversationWithUsers) => conversationWithUsers.users.map((user) => user.userId));
-        const normalizedParticipantIds = this.normalizeParticipantIds(participantIds);
-        const nonParticipantCheckPromise = existingParticipantsPromise.then((existingParticipantIds) => {
-            const nonParticipants = normalizedParticipantIds.filter((id) => !existingParticipantIds.includes(id));
-            if (nonParticipants.length) {
-                throw new Error(`The following users are not participants in the conversation: ${nonParticipants.join(", ")}`);
+
+        for (const participantId of normalizedParticipantIds) {
+            const isMember = await this.conversationMemberRepository.isUserInConversation(
+                normalizedConversationId,
+                participantId,
+            );
+            if (!isMember) {
+                throw new Error(`The following users are not participants in the conversation: ${participantId}`);
             }
-        });
-        return nonParticipantCheckPromise;
+        }
+
+        await Promise.all(
+            normalizedParticipantIds.map((participantId) =>
+                this.conversationMemberRepository.removeMemberFromConversation(
+                    normalizedConversationId,
+                    participantId,
+                ),
+            ),
+        );
     }
 
-    async isUserInConversation(conversationId: string, userId: string) {
+    async isUserInConversation(conversationId: string, userId: string): Promise<boolean> {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+
         const normalizedUserId = userId.trim();
         if (!normalizedUserId) {
             throw new Error("User ID is required");
         }
-        return this.chatRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
+
+        return this.conversationMemberRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
     }
-    async leaveConversation(conversationId: string, userId: string) {
+
+    async leaveConversation(conversationId: string, userId: string): Promise<void> {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+
         const normalizedUserId = userId.trim();
         if (!normalizedUserId) {
             throw new Error("User ID is required");
         }
-        const isMember = await this.chatRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
+
+        const isMember = await this.conversationMemberRepository.isUserInConversation(
+            normalizedConversationId,
+            normalizedUserId,
+        );
         if (!isMember) {
             throw new Error("Forbidden: user is not in conversation");
         }
-        const isAdmin = await this.chatRepository.isAdmin(normalizedConversationId, normalizedUserId);
+
+        const isAdmin = await this.conversationMemberRepository.isAdmin(normalizedConversationId, normalizedUserId);
         if (isAdmin) {
             throw new Error("Group admins cannot leave the conversation. Please transfer admin role before leaving.");
         }
-        return this.chatRepository.leaveConversation(normalizedConversationId, normalizedUserId);
+
+        await this.conversationMemberRepository.leaveConversation(normalizedConversationId, normalizedUserId);
     }
-    async transferGroupAdmin(conversationId: string, requesterUserId: string, newAdminUserId: string) {
+
+    async transferGroupAdmin(conversationId: string, requesterUserId: string, newAdminUserId: string): Promise<void> {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+
         const normalizedRequesterUserId = requesterUserId.trim();
         if (!normalizedRequesterUserId) {
             throw new Error("Requester ID is required");
         }
+
         const normalizedNewAdminUserId = newAdminUserId.trim();
         if (!normalizedNewAdminUserId) {
             throw new Error("New admin ID is required");
         }
+
         await this.ensureRequesterIsGroupAdmin(normalizedConversationId, normalizedRequesterUserId);
-        const conversationWithUsers = await this.chatRepository.findConversationWithUsers(normalizedConversationId);
-        if (!conversationWithUsers.users.some((user) => user.userId === normalizedNewAdminUserId)) {
+
+        const isNewAdminMember = await this.conversationMemberRepository.isUserInConversation(
+            normalizedConversationId,
+            normalizedNewAdminUserId,
+        );
+        if (!isNewAdminMember) {
             throw new Error("New admin user must be a member of the conversation");
         }
-        await this.chatRepository.transferAdmin(
+
+        await this.conversationMemberRepository.transferAdmin(
             normalizedConversationId,
             normalizedRequesterUserId,
             normalizedNewAdminUserId,
         );
-        return;
     }
-
 
     async sendMessage(
         conversationId: string,
         senderId: string,
         content?: string,
-        mediaFiles?: { buffer: Buffer; filename: string; mimetype: string }[]
-    ) {
+        mediaFiles?: { buffer: Buffer; filename: string; mimetype: string }[],
+    ): Promise<MessageEntity> {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
         }
+
         const normalizedSenderId = senderId.trim();
         if (!normalizedSenderId) {
             throw new Error("Sender ID is required");
         }
+
         const normalizedContent = content?.trim();
         const hasMediaFiles = Boolean(mediaFiles?.length);
-
         if (!normalizedContent && !hasMediaFiles) {
             throw new Error("Message content or media is required");
         }
@@ -314,15 +342,14 @@ export class ChatUseCase {
                         : await this.cloudinaryService.uploadImage(file.buffer, "message_media");
 
                     return {
-
                         mediaUrl: uploadResult.url,
                         mediaType,
                         publicId: uploadResult.publicId,
                     };
-                })
+                }),
             );
 
-            return this.chatRepository.createMessageWithMedia({
+            return this.messageRepository.createMessageWithMedia({
                 conversationId: normalizedConversationId,
                 senderId: normalizedSenderId,
                 content: normalizedContent || null,
@@ -330,29 +357,41 @@ export class ChatUseCase {
             });
         }
 
-        return this.chatRepository.createMessage({
+        return this.messageRepository.createMessage({
             conversationId: normalizedConversationId,
             senderId: normalizedSenderId,
             content: normalizedContent || null,
         });
     }
+
     async updateMessage(conversationId: string, userId: string, messageId: string, content: string) {
-        const normalizedMessageId = messageId.trim();
         const normalizedConversationId = conversationId.trim();
         const normalizedUserId = userId.trim();
-        const isMember = await this.chatRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
-        if (!isMember) {
-            throw new Error("Forbidden: user is not in conversation");
+        const normalizedMessageId = messageId.trim();
+        const normalizedContent = content.trim();
+
+        if (!normalizedConversationId) {
+            throw new Error("Conversation ID is required");
+        }
+        if (!normalizedUserId) {
+            throw new Error("User ID is required");
         }
         if (!normalizedMessageId) {
             throw new Error("Message ID is required");
         }
-        const normalizedContent = content.trim();
         if (!normalizedContent) {
             throw new Error("Message content is required");
         }
 
-        const existingMessage = await this.chatRepository.findMessageById(normalizedMessageId);
+        const isMember = await this.conversationMemberRepository.isUserInConversation(
+            normalizedConversationId,
+            normalizedUserId,
+        );
+        if (!isMember) {
+            throw new Error("Forbidden: user is not in conversation");
+        }
+
+        const existingMessage = await this.messageRepository.findMessageById(normalizedMessageId);
         if (!existingMessage || existingMessage.isDeleted) {
             throw new Error("Message not found");
         }
@@ -366,22 +405,33 @@ export class ChatUseCase {
             throw new Error("Forbidden: messages can only be edited within 5 minutes of sending");
         }
 
-        return this.chatRepository.updateMessage(normalizedMessageId, { content: normalizedContent });
+        return this.messageRepository.updateMessage(normalizedMessageId, normalizedContent);
     }
 
-    async deleteMessage(conversationId: string, userId: string, messageId: string) {
-        const normalizedMessageId = messageId.trim();
+    async deleteMessage(conversationId: string, userId: string, messageId: string): Promise<void> {
         const normalizedConversationId = conversationId.trim();
         const normalizedUserId = userId.trim();
-        const isMember = await this.chatRepository.isUserInConversation(normalizedConversationId, normalizedUserId);
-        if (!isMember) {
-            throw new Error("Forbidden: user is not in conversation");
+        const normalizedMessageId = messageId.trim();
+
+        if (!normalizedConversationId) {
+            throw new Error("Conversation ID is required");
+        }
+        if (!normalizedUserId) {
+            throw new Error("User ID is required");
         }
         if (!normalizedMessageId) {
             throw new Error("Message ID is required");
         }
 
-        const existingMessage = await this.chatRepository.findMessageById(normalizedMessageId);
+        const isMember = await this.conversationMemberRepository.isUserInConversation(
+            normalizedConversationId,
+            normalizedUserId,
+        );
+        if (!isMember) {
+            throw new Error("Forbidden: user is not in conversation");
+        }
+
+        const existingMessage = await this.messageRepository.findMessageById(normalizedMessageId);
         if (!existingMessage || existingMessage.isDeleted) {
             throw new Error("Message not found");
         }
@@ -392,16 +442,16 @@ export class ChatUseCase {
             throw new Error("Forbidden: only message owner can delete this message");
         }
 
-        return this.chatRepository.deleteMessage(normalizedMessageId);
+        await this.messageRepository.deleteMessage(normalizedMessageId);
     }
-    // async displayMessages(conversationId: string) {
-    //     const normalizedConversationId = conversationId.trim();
-    //     if (!normalizedConversationId) {
-    //         throw new Error("Conversation ID is required");
-    //     }
-    //     return this.chatRepository.displayMessages(normalizedConversationId);
-    // }
-    async paginateMessages(conversationId: string, limit: number, cursor?: string, search?: string, direction?: "up" | "down") {
+
+    async paginateMessages(
+        conversationId: string,
+        limit: number,
+        cursor?: string,
+        search?: string,
+        direction?: "up" | "down",
+    ): Promise<FindMessagesResult> {
         const normalizedConversationId = conversationId.trim();
         if (!normalizedConversationId) {
             throw new Error("Conversation ID is required");
@@ -409,7 +459,8 @@ export class ChatUseCase {
         if (limit <= 0) {
             throw new Error("Limit must be greater than 0");
         }
-        return this.chatRepository.findMessages({
+
+        return this.messageQueryService.findMessages({
             conversationId: normalizedConversationId,
             limit,
             cursor,
@@ -461,18 +512,19 @@ export class ChatUseCase {
             throw new Error("Requester user ID is required");
         }
 
-        const conversationWithUsers = await this.chatRepository.findConversationWithUsers(conversationId);
-        if (!conversationWithUsers.conversation.isGroup) {
+        const conversation = await this.conservationRepository.findConversationById(conversationId);
+        if (!conversation) {
+            throw new Error("Conversation not found");
+        }
+        if (!conversation.isGroup) {
             throw new Error("Only group conversations support this action");
         }
 
-        const requesterMembership = conversationWithUsers.users.find(
-            (conversationUser) => conversationUser.userId === normalizedRequesterUserId,
+        const isAdmin = await this.conversationMemberRepository.isAdmin(
+            conversationId,
+            normalizedRequesterUserId,
         );
-        if (!requesterMembership) {
-            throw new Error("Forbidden: requester is not a member of this conversation");
-        }
-        if (!requesterMembership.admin) {
+        if (!isAdmin) {
             throw new Error("Forbidden: admin permission is required");
         }
     }
@@ -486,3 +538,5 @@ export class ChatUseCase {
         }
     }
 }
+
+export { ConservationUseCase as ChatUseCase };

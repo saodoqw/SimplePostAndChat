@@ -1,5 +1,5 @@
 import { type NextFunction, type Request, type Response } from "express";
-import { type AccessTokenPayload, type JwtService } from "../../infrastructure/encryption/jwt.service.js";
+import { type AccessTokenPayload, type JwtService } from "../../application/ports/jwt.service.js";
 
 export interface AuthenticatedRequest extends Request {
 	authUser: AccessTokenPayload;

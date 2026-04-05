@@ -1,10 +1,15 @@
 import { type NextFunction, type Request, type Response } from "express";
 import { type AuthenticatedRequest } from "../middlewares/auth.middleware.js";
-import { ChatUseCase } from "../../usecases/chats/chats.usecases.js";
-import { emitNewMessageToConversation } from "../../infrastructure/socket/chat.socket.js";
+import { ChatUseCase } from "../../application/usecases/chats/chats.usecases.js";
+import { type MessageEntity } from "../../domain/entities/message.entity.js";
+
+type OnMessageCreated = (conversationId: string, message: MessageEntity) => void;
 
 export class ChatController {
-    constructor(private chatUseCase: ChatUseCase) { }
+    constructor(
+        private chatUseCase: ChatUseCase,
+        private readonly onMessageCreated?: OnMessageCreated,
+    ) { }
 
     createDirectConversation = async (
         req: Request,
@@ -281,6 +286,7 @@ export class ChatController {
         next: NextFunction,
     ): Promise<void> => {
         try {
+            console.log("[CHAT_DEBUG] sendMessage called - conversationId:", req.params.conversationId);
             const authUser = (req as AuthenticatedRequest).authUser;
             if (!authUser?.userId) {
                 res.status(401).json({ message: "Unauthorized" });
@@ -296,6 +302,7 @@ export class ChatController {
             const content = this.getBodyString(req.body?.content);
             const mediaFiles = this.getMediaFiles(req);
 
+
             if (!content && !mediaFiles?.length) {
                 res.status(400).json({ message: "Content or media is required" });
                 return;
@@ -308,7 +315,7 @@ export class ChatController {
                 mediaFiles,
             );
 
-            emitNewMessageToConversation(conversationId, message);
+            this.onMessageCreated?.(conversationId, message);
             res.status(201).json({ data: message });
         } catch (error) {
             res.status(400).json({ message: (error as Error).message });

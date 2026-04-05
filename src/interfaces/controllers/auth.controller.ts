@@ -3,12 +3,12 @@ import {
     AuthInvalidCredentialsError,
     AuthUseCase,
     AuthValidationError,
-} from "../../usecases/auth/auth.usecase.js";
+} from "../../application/usecases/auth/auth.usecase.js";
 import {
     CreateUserConflictError,
     CreateUserValidationError,
     UserUseCase,
-} from "../../usecases/users/users.usecases.js";
+} from "../../application/usecases/users/users.usecases.js";
 
 const REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
 const REFRESH_TOKEN_COOKIE_PATH = "/api/auth/refresh-token";
