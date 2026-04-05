@@ -1,18 +1,11 @@
 import cloudinary from "./config/cloudinary.config.js";
 import { type UploadApiOptions, type UploadApiResponse } from "cloudinary";
+import {
+  type ImageStorageService,
+  type UploadResult,
+} from "../../../application/ports/image-storage.service.js";
 
-type UploadResult = { url: string; publicId: string };
-
-export interface CloudinaryService {
-  uploadMany(fileBuffers: Buffer[], folder: string): Promise<UploadResult[]>;
-  uploadImage(fileBuffer: Buffer, folder: string): Promise<UploadResult>;
-  uploadVideo(fileBuffer: Buffer, folder: string): Promise<UploadResult>;
-  uploadAvatar(fileBuffer: Buffer, userId: string): Promise<UploadResult>;
-  deleteImage(publicId: string): Promise<void>;
-  deleteVideo(publicId: string): Promise<void>;
-}
-
- class CloudinaryServiceImpl implements CloudinaryService {
+ class CloudinaryServiceImpl implements ImageStorageService {
   async uploadMany(fileBuffers: Buffer[], folder: string): Promise<UploadResult[]> {
     if (!fileBuffers.length) return [];
     return Promise.all(fileBuffers.map((buffer) => this.uploadImage(buffer, folder)));
@@ -113,4 +106,4 @@ export interface CloudinaryService {
   }
 }
 
-export const cloudinaryService: CloudinaryService = new CloudinaryServiceImpl();
+export const cloudinaryService: ImageStorageService = new CloudinaryServiceImpl();

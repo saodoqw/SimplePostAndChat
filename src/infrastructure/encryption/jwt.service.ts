@@ -1,4 +1,8 @@
 import jwt from "jsonwebtoken";
+import {
+    type AccessTokenPayload,
+    type JwtService,
+} from "../../application/ports/jwt.service.js";
 
 const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = "15m";
 const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = "7d";
@@ -20,24 +24,10 @@ function normalizeExpiresIn(
     return value;
 }
 
-export interface AccessTokenPayload {
-    userId: string;
-    username: string;
-    email: string;
-}
-
 type TokenType = "access" | "refresh";
 
 interface SignedTokenPayload extends AccessTokenPayload {
     tokenType: TokenType;
-}
-
-export interface JwtService {
-  generateAccessToken(payload: AccessTokenPayload): string;
-  generateRefreshToken(payload: AccessTokenPayload): string;
-
-  verifyAccessToken(token: string): AccessTokenPayload;
-  verifyRefreshToken(token: string): AccessTokenPayload;
 }
 
  class TokenServiceIml implements JwtService {

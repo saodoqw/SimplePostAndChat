@@ -2,9 +2,9 @@ import { fail } from "node:assert";
 import {
     type ChatRepository,
     type CreateConversationRepositoryInput,
-} from "../../domain/repositories/chat.repository.js";
-import { type UserRepository } from "../../domain/repositories/user.repository.js";
-import { type CloudinaryService } from '../../infrastructure/imageStorage/cloudinary/cloudinary.service.js';
+} from "../../../domain/repositories/chat.repository.js";
+import { type UserRepository } from "../..//../domain/repositories/user.repository.js";
+import { type ImageStorageService } from '../../ports/image-storage.service.js';
 
 const DEFAULT_DIRECT_CHAT_NAME = "Direct Chat";
 const DEFAULT_GROUP_CHAT_NAME = "New Group";
@@ -14,7 +14,7 @@ type UploadableMediaType = "image" | "video";
 export class ChatUseCase {
     constructor(
         private readonly chatRepository: ChatRepository,
-        private readonly cloudinaryService: CloudinaryService,
+        private readonly cloudinaryService: ImageStorageService,
         private readonly userRepository: UserRepository,
     ) { }
 

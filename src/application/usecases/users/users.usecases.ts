@@ -1,12 +1,12 @@
 import {
     UserEntity,
     UserEntityValidationError,
-} from '../../domain/entities/user.entity.js';
-import { type UserRepository } from '../../domain/repositories/user.repository.js';
-import { type SendGridService } from '../../infrastructure/EmailSender/sendGrid.service.js';
-import { type CryptionService } from '../../infrastructure/encryption/cryption.service.js';
-import { type RedisService } from '../../infrastructure/redisService/redis.service.js';
-import { type CloudinaryService } from '../../infrastructure/imageStorage/cloudinary/cloudinary.service.js';
+} from '../../../domain/entities/user.entity.js';
+import { type UserRepository } from '../../../domain/repositories/user.repository.js';
+import { type EmailService } from '../../ports/email.service.js';
+import { type CryptionService } from '../../ports/cryption.service.js';
+import { type RedisService } from '../../../infrastructure/redisService/redis.service.js';
+import { type ImageStorageService } from '../../ports/image-storage.service.js';
 
 
 export interface CreateUserUseCaseInput {
@@ -62,8 +62,8 @@ export class UserUseCase {
         private readonly userRepository: UserRepository,
         private readonly cryptionService: CryptionService,
         private readonly redisService: RedisService,
-        private readonly sendGridService: SendGridService,
-        private readonly cloudinaryService: CloudinaryService,
+        private readonly sendGridService: EmailService,
+        private readonly cloudinaryService: ImageStorageService,
     ) { }
 
     async searchUsers(query: string, searchingUserId: string) {

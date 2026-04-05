@@ -2,6 +2,7 @@ import sgMail from "@sendgrid/mail";
 import "dotenv/config";
 import { buildVerificationEmailTemplate } from "./template/verification-email.template.js";
 import { buildPasswordResetEmailTemplate } from "./template/reset-password.template.js";
+import { type EmailService } from "../../application/ports/email.service.js";
 
 type SendGridMessage = {
     to: string;
@@ -25,13 +26,7 @@ const apiKey = getRequiredEnv("SENDGRID_API_KEY");
 
 sgMail.setApiKey(apiKey);
 
-export interface SendGridService {
-    sendEmail(to: string, subject: string, text: string, html: string): Promise<void>;
-    sendVerificationEmailWithTemplate(to: string, token: string): Promise<void>;
-    sendPasswordResetEmailWithTemplate(to: string, token: string): Promise<void>;
-}
-
- class SendGridServiceImpl implements SendGridService {
+ class SendGridServiceImpl implements EmailService {
     private readonly fromEmail = getRequiredEnv("EMAIL_FROM");
 
     async sendEmail(to: string, subject: string, text: string, html: string): Promise<void> {
@@ -91,4 +86,4 @@ export interface SendGridService {
     }
 }
 
-export const sendGridService: SendGridService = new SendGridServiceImpl();
+export const sendGridService: EmailService = new SendGridServiceImpl();

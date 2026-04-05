@@ -32,15 +32,16 @@ app.use('/api', apiRoutes);
 
 //global error middleware
 app.use(
-    (error: unknown,
-        req: Request,
-        res: Response,
-        next: NextFunction
-    ): void => {
-        const message = error instanceof Error ? error.message : 'Internal server error';
+    (error: unknown, req: Request, res: Response, next: NextFunction): void => {
+        if (res.headersSent) {
+            return next(error);
+        }
+
+        const message =
+            error instanceof Error ? error.message : "Internal server error";
+
         res.status(500).json({ message });
     }
 );
-
 
 export default app;

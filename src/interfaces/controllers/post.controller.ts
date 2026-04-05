@@ -2,7 +2,7 @@ import { type NextFunction, type Request, type Response } from "express";
 import {
     PostUseCase,
     CreatePostValidationError,
-} from "../../usecases/posts/post.usecase.js";
+} from "../../application/usecases/posts/post.usecase.js";
 import { type AuthenticatedRequest } from "../middlewares/auth.middleware.js";
 
 export class PostController {

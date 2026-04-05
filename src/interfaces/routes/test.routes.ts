@@ -12,6 +12,10 @@ import { ChatUseCase } from "../../usecases/chats/chats.usecases.js";
 import { PrismaUserRepository } from "../../infrastructure/database/prisma/repositories/prisma-user.repository.js";
 import { PrismaPostRepository } from "../../infrastructure/database/prisma/repositories/prisma-post.repository.js";
 import { PrismaChatRepository } from "../../infrastructure/database/prisma/repositories/prisma-chat.repository.js";
+import { prismaPostLikeRepository } from "../../infrastructure/database/prisma/repositories/prisma-postlike.repository.js";
+import { prismaCommentRepository } from "../../infrastructure/database/prisma/repositories/prisma-comment.repository.js";
+import { prismaPostQuery } from "../../infrastructure/database/prisma/queries/prisma-post.query.js";
+import { PrismaCommentQuery } from "../../infrastructure/database/prisma/queries/prisma-comment.query.js";
 
 import { cryptionService } from "../../infrastructure/encryption/cryption.service.js";
 import { tokenService } from "../../infrastructure/encryption/jwt.service.js";
@@ -28,9 +32,20 @@ const testUseCase = new TestUseCase(testRepository);
 const userRepository = new PrismaUserRepository();
 const postRepository = new PrismaPostRepository();
 const chatRepository = new PrismaChatRepository();
+const postQueryService = new prismaPostQuery();
+const postLikeRepository = new prismaPostLikeRepository();
+const commentRepository = new prismaCommentRepository();
+const commentQueryService = new PrismaCommentQuery();
 
 const authUseCase = new AuthUseCase(userRepository, cryptionService, tokenService);
-const postUseCase = new PostUseCase(postRepository, cloudinaryService);
+const postUseCase = new PostUseCase(
+    postRepository,
+    postQueryService,
+    postLikeRepository,
+    commentRepository,
+    commentQueryService,
+    cloudinaryService,
+);
 const chatUseCase = new ChatUseCase(chatRepository, cloudinaryService, userRepository);
 
 const testController = new TestController(testUseCase, authUseCase, postUseCase, chatUseCase);

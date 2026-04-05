@@ -1,6 +1,6 @@
-import { type UserRepository } from "../../domain/repositories/user.repository.js";
-import { type CryptionService } from "../../infrastructure/encryption/cryption.service.js";
-import { type JwtService } from "../../infrastructure/encryption/jwt.service.js";
+import { type UserRepository } from "../../../domain/repositories/user.repository.js";
+import { type CryptionService } from '../../ports/cryption.service.js';
+import { type JwtService } from "../../ports/jwt.service.js";
 
 export interface LoginInput {
     email: string;

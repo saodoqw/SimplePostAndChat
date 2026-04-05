@@ -1,15 +1,8 @@
 import bcrypt from 'bcryptjs';
 import crypto from "crypto";
+import { type CryptionService } from "../../application/ports/cryption.service.js";
 
 const DEFAULT_SALT_ROUNDS = 10;
-
-export interface CryptionService {
-    hashPassword(plainPassword: string): Promise<string>;
-    verifyPassword(plainPassword: string, passwordHash: string): Promise<boolean>;
-    createToken(): string;
-    verifyToken(token: string, expectedToken: string): boolean;
-
-}
 
  class BcryptCryptionService implements CryptionService {
     constructor(private readonly saltRounds: number = DEFAULT_SALT_ROUNDS) {}
