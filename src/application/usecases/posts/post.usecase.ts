@@ -120,6 +120,7 @@ export class PostUseCase {
         }
 
         try {
+            // Text-only posts can be written directly without touching Cloudinary.
             if (!input.imageBuffer?.length) {
                 const createdPost = await this.postRepository.create({
                     authorId,
@@ -134,6 +135,7 @@ export class PostUseCase {
                 };
             }
 
+            // Media posts upload first, then persist the returned URLs and public IDs.
             const uploadedImages = await this.uploadImages(input.imageBuffer);
             const createdPost = await this.postRepository.createPostWithMedia({
                 authorId,
@@ -161,6 +163,7 @@ export class PostUseCase {
     }
 
     async updatePost(postId: string, content: string, userId: string): Promise<updatePostOutput> {
+        // Ownership check belongs here so controllers do not repeat business rules.
         const existingPost = await this.postRepository.findById(postId);
         if (!existingPost) {
             throw new Error("Post not found");
@@ -185,6 +188,7 @@ export class PostUseCase {
     }
 
     async deletePost(postId: string, userId: string): Promise<void> {
+        // Validate ownership before deleting anything from DB or external storage.
         const existingPost = await this.postRepository.findById(postId);
         if (!existingPost) throw new Error("Post not found");
         if (existingPost.author_id !== userId) {
@@ -197,7 +201,7 @@ export class PostUseCase {
         // tránh trường hợp xóa media thành công nhưng lỗi ở DB thì sẽ bị mất media mà post vẫn còn, nếu xóa DB trước thì dù có lỗi gì đi nữa thì cũng không ảnh hưởng đến consistency của data
         await this.postRepository.deleteById(postId);
 
-        // delete media from Cloudinary, không cần await vì đã xóa DB rồi, nếu có lỗi thì log lại chứ không throw nữa
+        // Cloudinary cleanup is best-effort after the database delete has succeeded.
         Promise.all(
             mediaAssets.map(async (media) => {
                 try {
@@ -215,6 +219,7 @@ export class PostUseCase {
     }
 
     async findDetailedPostById(postId: string, userId: string): Promise<postDetails | null> {
+        // Read model returns a richer DTO; this use case only reshapes it for the caller.
         const post = await this.postQueryService.getPostDetail(postId, userId);
         return post ? this.toPostDetails(post) : null;
     }
@@ -225,6 +230,7 @@ export class PostUseCase {
             throw new CreatePostValidationError("authorId is required");
         }
 
+        // Normalize paging/sorting here so every caller gets the same feed behavior.
         const result = await this.postQueryService.getFeed({
             authorId,
             authUserId: query.authUserId?.trim(),
@@ -242,6 +248,7 @@ export class PostUseCase {
     }
 
     async likeCountPost(postId: string): Promise<number> {
+        // Like count is read from the query service instead of recomputing it.
         const post = await this.postQueryService.getPostDetail(postId);
         if (!post) {
             throw new Error("Post not found");
@@ -251,12 +258,13 @@ export class PostUseCase {
 
     async likeUnlikePost(postId: string, userId: string): Promise<boolean> {
         await this.getPostOrThrow(postId);
-        //  delegate xuống repo xử lý transaction
+        // Toggle lives in the repository because it owns the transactional write.
         const isLiked = await this.postLikeRepository.toggle(postId, userId);
         return isLiked;
     }
 
     async isPostLikedByUser(postId: string, userId: string): Promise<boolean> {
+        // The read model already knows whether the authenticated user liked the post.
         const post = await this.postQueryService.getPostDetail(postId, userId);
         if (!post) {
             throw new Error("Post not found");
@@ -265,6 +273,7 @@ export class PostUseCase {
     }
 
     async findCommentsCount(postId: string): Promise<number> {
+        // Comment count also comes from the read model to stay consistent with feed data.
         const post = await this.postQueryService.getPostDetail(postId);
         if (!post) {
             throw new Error("Post not found");
@@ -292,6 +301,7 @@ export class PostUseCase {
             throw new Error("Post not found");
         }
 
+        // Comments follow the same pattern as posts: text-only or with uploaded media.
         if (!data.imageBuffer?.length) {
             const createdComment = await this.commentRepository.create({
                 postId,
@@ -337,6 +347,7 @@ export class PostUseCase {
 
         await this.getPostOrThrow(postId);
 
+        // Keep pagination logic in the application layer so the controller stays thin.
         const result = await this.commentQueryService.getComments({
             postId,
             cursor: query.cursor?.trim(),
@@ -359,6 +370,7 @@ export class PostUseCase {
     }
 
     async deleteComment(commentId: string, userId: string): Promise<void> {
+        // Ownership check is a business rule, not a transport concern.
         const existingComment = await this.commentRepository.findById(commentId);
         if (!existingComment) {
             throw new Error("Comment not found");
@@ -369,6 +381,7 @@ export class PostUseCase {
 
         try {
             const mediaAssets = await this.commentRepository.findMediaAssetsByCommentId(commentId);
+            // Media cleanup is best-effort: if Cloudinary fails, the comment still gets removed.
             await Promise.all(
                 mediaAssets.map(async (media) => {
                     if (!media.publicId) {
@@ -389,6 +402,7 @@ export class PostUseCase {
     }
 
     private toPostDetails(post: PostDetailDto): postDetails {
+        // Pure mapper from read DTO to the shape the controller expects.
         return {
             postId: post.id,
             authorId: post.author.id,
@@ -407,6 +421,7 @@ export class PostUseCase {
         if (!buffers?.length) {
             return [];
         }
+        // Explicit folder keeps post assets separated from other media types.
         return this.cloudinaryService.uploadMany(buffers, "posts");
     }
 
@@ -414,16 +429,19 @@ export class PostUseCase {
         if (!buffers?.length) {
             return [];
         }
+        // Comments use their own folder for easier cleanup and browsing.
         return this.cloudinaryService.uploadMany(buffers, "comments");
     }
 
     private async getPostOrThrow(postId: string, userId?: string) {
+        // Shared guard so every method that needs a post record uses the same check.
         const post = await this.postQueryService.getPostDetail(postId, userId);
         if (!post) throw new Error("Post not found");
         return post;
     }
 
     private parseLimit(limit?: number, defaultValue = 10): number {
+        // One place for pagination validation keeps all list endpoints consistent.
         const parsed = Number(limit ?? defaultValue);
         if (!Number.isInteger(parsed) || parsed <= 0) {
             throw new CreatePostValidationError("limit must be a positive integer");

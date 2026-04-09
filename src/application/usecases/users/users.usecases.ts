@@ -67,6 +67,8 @@ export class UserUseCase {
     ) { }
 
     async searchUsers(query: string, searchingUserId: string) {
+        // Application layer only coordinates the search rule.
+        // The actual data access stays inside the repository.
         const trimmedQuery = this.normalizeRequiredString(query, "query");
         if (!trimmedQuery) {
             return [];
@@ -75,9 +77,8 @@ export class UserUseCase {
         return users;
     }
 
-    // This method creates a temporary user in Redis with a 30-minute expiration.
-    // If the user already has a pending registration, reuse the existing token instead of generating a new one.
-    // This prevents token mismatch when user clicks register multiple times.
+    // This use case keeps registration state in Redis until email verification completes.
+    // Reusing the existing token avoids invalidating a link when the user retries registration.
     async createTemporaryUser(
         input: CreateUserUseCaseInput
     ): Promise<void> {
@@ -105,12 +106,12 @@ export class UserUseCase {
             throw new CreateUserConflictError('username already exists');
         }
 
-        // Check if temporary user already exists in Redis
+        // Redis is used as a short-lived staging area before the user is persisted.
         const existingTempUser = await this.redisService.get<UserCreateEntity>(`tempUser:${email}`);
 
         const passwordHash = await this.cryptionService.hashPassword(password);
 
-        // Reuse existing token if temporary user exists to avoid token mismatch
+        // Reuse the previous token so the latest verification link stays valid.
         const registrationToken = existingTempUser?.registrationToken || this.cryptionService.createToken();
 
         const tempUser: UserCreateEntity = {
@@ -123,12 +124,12 @@ export class UserUseCase {
 
         await this.redisService.set(`tempUser:${email}`, tempUser, 60 * 30); // 30 minutes expiration
 
-        // Only send email if it's a new registration (no existing temporary user)
+        // Only send a verification email on the first registration attempt.
         if (!existingTempUser) {
             await this.sendGridService.sendVerificationEmailWithTemplate(email, registrationToken);
         }
     }
-    //Verify user and save to database, then delete the temporary user from Redis
+    // Verify the token first, then persist the user, and finally clear the staging record.
     async verifyEmail(email: string, token: string): Promise<void> {
         const normalizedEmail = this.normalizeRequiredString(email, "email");
         const normalizedToken = this.normalizeRequiredString(token, "token");
@@ -152,8 +153,8 @@ export class UserUseCase {
     }
 
     async deleteUser(id: string): Promise<void> {
-        //delete user and get list of media assets to delete from cloudinary,
-        // then delete media assets from cloudinary, finally delete user from database
+        // Remove DB state first, then clean up external media assets.
+        // This keeps the database as the source of truth even if Cloudinary cleanup partially fails.
         const existingUser = await this.userRepository.findById(id);
         if (!existingUser) {
             throw new Error("User not found");
@@ -163,15 +164,14 @@ export class UserUseCase {
             return;
         }
         const assetMap = new Map();
-        //Use map to ensure we only attempt to delete each unique media asset once, in case of duplicates in the list
+        // Deduplicate asset deletions so repeated references do not trigger repeated Cloudinary calls.
         for (const asset of mediaAssets) {
             const key = `${asset.mediaType}:${asset.publicId}`;
             if (!assetMap.has(key)) {
                 assetMap.set(key, asset);
             }
         }
-        //delete media assets from cloudinary in parallel,
-        //but don't fail the whole operation if some deletions fail just log the errors
+        // Cloudinary cleanup runs in parallel and failures are tolerated after the DB delete succeeds.
         const uniqueAssets = Array.from(assetMap.values());
 
         const deleteResults = await Promise.allSettled(
@@ -204,6 +204,7 @@ export class UserUseCase {
             return null;
         }
 
+        // Normalize request data here so controllers stay thin and transport-agnostic.
         const normalizedUpdateData: UserUpdateEntity = {
             ...updateData,
             username: updateData.username?.trim(),
@@ -211,10 +212,12 @@ export class UserUseCase {
             bio: updateData.bio === undefined ? undefined : updateData.bio?.trim() ?? null,
         };
 
+        // If there is no new avatar, only the scalar fields need to be updated.
         if (!avatarFile) {
             return this.userRepository.update(id, normalizedUpdateData);
         }
 
+        // Upload first so we only write the new publicId/url once the file is safely stored.
         const uploadedAvatar = await this.cloudinaryService.uploadAvatar(avatarFile.buffer, id);
 
         try {
@@ -237,7 +240,7 @@ export class UserUseCase {
             throw error;
         }
     }
-    //create temp request for changing password, send email with token, verify token and change password
+        // Password reset is also staged in Redis so the token expires automatically.
     async requestPasswordReset(email: string): Promise<void> {
         const normalizedEmail = this.normalizeRequiredString(email, "email");
         const user = await this.userRepository.findByEmail(normalizedEmail);
@@ -246,7 +249,7 @@ export class UserUseCase {
         }
         const existingToken = await this.redisService.get<string>(`passwordReset:${normalizedEmail}`);
         if (existingToken) {
-            // If there's already a valid token, don't create a new one or send another email
+            // Keep the existing token alive instead of spamming multiple reset emails.
             return;
         }
         const resetToken = this.cryptionService.createToken();
@@ -263,6 +266,7 @@ export class UserUseCase {
         if (!storedToken || !this.cryptionService.verifyToken(normalizedToken, storedToken)) {
             throw new Error("Invalid or expired password reset token");
         }
+        // Only after the token is valid do we update the password hash in the repository.
         const user = await this.userRepository.findByEmail(normalizedEmail);
         if (!user) {
             throw new Error("User not found");
@@ -310,6 +314,7 @@ export class UserUseCase {
         if (!existingUser) {
             throw new Error("User not found");
         }
+        // Same count logic as followers, but for outbound relationships.
         const following = await this.userRepository.getFollowing(userId);
         return following.length;
     }
@@ -321,6 +326,7 @@ export class UserUseCase {
         if (!existingUser) {
             throw new Error("User not found");
         }
+        // Return only public fields so the UI never sees private data accidentally.
         const followers = await this.userRepository.getFollowers(userId);
         return followers.map((user) => ({
             id: user.id,
@@ -354,6 +360,7 @@ export class UserUseCase {
             throw new CreateUserValidationError(`${fieldName} is required`);
         }
 
+        // Shared input guard so every public method gets the same validation behavior.
         const normalizedValue = value.trim();
         if (!normalizedValue) {
             throw new CreateUserValidationError(`${fieldName} is required`);
