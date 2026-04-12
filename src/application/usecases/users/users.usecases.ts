@@ -7,6 +7,7 @@ import { type EmailService } from '../../ports/email.service.js';
 import { type CryptionService } from '../../ports/cryption.service.js';
 import { type RedisService } from '../../../infrastructure/redisService/redis.service.js';
 import { type ImageStorageService } from '../../ports/image-storage.service.js';
+import { UserProfileDto, UserQueryService } from '../../queries/user.query.js';
 
 
 export interface CreateUserUseCaseInput {
@@ -60,6 +61,7 @@ export class UserUseCase {
 
     constructor(
         private readonly userRepository: UserRepository,
+        private readonly userQueryService: UserQueryService,
         private readonly cryptionService: CryptionService,
         private readonly redisService: RedisService,
         private readonly sendGridService: EmailService,
@@ -150,6 +152,12 @@ export class UserUseCase {
 
     async getUserByEmail(email: string): Promise<UserEntity | null> {
         return this.userRepository.findByEmail(email);
+    }
+    async getUserProfile(userEmail: string, authUserId?: string): Promise<UserProfileDto | null> {
+        if (!userEmail) {
+            throw new Error("userEmail is required");
+        }
+        return this.userQueryService.getUserProfile(userEmail, authUserId);
     }
 
     async deleteUser(id: string): Promise<void> {

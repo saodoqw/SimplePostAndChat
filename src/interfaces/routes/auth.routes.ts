@@ -8,12 +8,15 @@ import { redisService } from "../../infrastructure/redisService/redis.service.js
 import { AuthUseCase } from "../../application/usecases/auth/auth.usecase.js";
 import { UserUseCase } from "../../application/usecases/users/users.usecases.js";
 import { AuthController } from "../controllers/auth.controller.js";
+import { PrismaUserQuery } from "../../infrastructure/database/prisma/queries/prisma-user.query.js";
 
 const authRoutes = Router();
 
 const userRepository = new PrismaUserRepository();
+const userQueryService = new PrismaUserQuery();
 const userUseCase = new UserUseCase(
     userRepository,
+    userQueryService,
     cryptionService,
     redisService,
     sendGridService,

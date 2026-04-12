@@ -32,6 +32,26 @@ export class UserController {
             res.status(400).json({ message: (error as Error).message }); next(error);
         }
     };
+    getUserProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const email = this.getBodyString(req.params?.email).trim();
+            const authUser = (req as AuthenticatedRequest).authUser;
+            if (!email) {
+                res.status(400).json({ message: "email is required" });
+                return;
+            }
+            const user = await this.userUseCase.getUserProfile(email, authUser?.userId);
+            if (!user) {
+                res.status(404).json({ message: "User not found" });
+                return;
+            }
+            res.status(200).json({ data: user });
+        }
+        catch (error) {
+            res.status(400).json({ message: (error as Error).message }); next(error);
+        }
+    }
+
     searchUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const query = this.getBodyString(req.params?.query).trim();

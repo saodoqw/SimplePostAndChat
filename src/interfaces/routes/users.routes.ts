@@ -7,14 +7,17 @@ import { redisService } from "../../infrastructure/redisService/redis.service.js
 import { sendGridService } from "../../infrastructure/EmailSender/sendGrid.service.js";
 import { cloudinaryService } from "../../infrastructure/imageStorage/cloudinary/cloudinary.service.js";
 import { uploadAvatarMiddleware } from "../middlewares/upload.middleware.js";
+import { PrismaUserQuery } from "../../infrastructure/database/prisma/queries/prisma-user.query.js";
 
 const userRoutes = Router();
 
 // Repository where we interact with the database
 const userRepository = new PrismaUserRepository();
+const userQueryService = new PrismaUserQuery();
 // Use case where we implement the business logic
 const userUseCase = new UserUseCase(
 	userRepository,
+	userQueryService,
 	cryptionService,
 	redisService,
 	sendGridService,
@@ -27,6 +30,7 @@ const userController = new UserController(userUseCase);
 
 //get profile user info by email
 userRoutes.get("/:email", userController.findByEmail);
+userRoutes.get("/profile/:email", userController.getUserProfile);
 userRoutes.get("/search/:query", userController.searchUsers);
 //variable name avatar in body is set by the upload middleware
 //change avatar
