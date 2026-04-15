@@ -84,18 +84,37 @@ export class AuthUseCase {
             },
         };
     }
-    getAccessTokenFromRefreshToken(refreshToken: string): string {
+    async getAccessTokenFromRefreshToken(refreshToken: string): Promise<string> {
         try {
             const payload = this.jwtService.verifyRefreshToken(refreshToken);
-            return this.jwtService.generateAccessToken({
+            const token = await this.jwtService.generateAccessToken({
                 userId: payload.userId,
                 username: payload.username,
                 email: payload.email,
             });
+            return token;
         } catch (error) {
             throw new AuthValidationError("Invalid or expired refresh token");
         }
     }
+    async getUserProfileFromAccessToken(accessToken: string): Promise<AuthUserOutput> {
+        try {
+            const payload = this.jwtService.verifyAccessToken(accessToken);
+            const existingUser = await this.userRepository.findByEmail(payload.email);
+            if(!existingUser){
+                throw new AuthValidationError("User not found");
+            }
+            return {
+                id: payload.userId,
+                username: payload.username,
+                email: payload.email,
+                avatarUrl: existingUser.avatarUrl || "", 
+            };
+        } catch (error) {
+            throw new AuthValidationError("Invalid or expired access token");
+        }
+    }
+
 
     private normalizeRequiredString(value: string, fieldName: string): string {
         if (typeof value !== "string") {

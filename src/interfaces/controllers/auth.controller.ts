@@ -58,7 +58,7 @@ export class AuthController {
                 res.status(400).json({ message: "Refresh token is required" });
                 return;
             }
-            const accessToken = this.authUseCase.getAccessTokenFromRefreshToken(refreshToken);
+            const accessToken = await this.authUseCase.getAccessTokenFromRefreshToken(refreshToken);
             res.status(200).json({ accessToken });
         } catch (error) {
             if (error instanceof AuthValidationError) {
@@ -80,6 +80,20 @@ export class AuthController {
             });
 
             res.status(200).json({ message: "Logged out successfully" });
+        } catch (error) {
+            next(error);
+        }
+    };
+    getCurrentUserProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+                res.status(401).json({ message: "Authorization header missing or malformed" });
+                return;
+            }
+            const token = authHeader.substring(7); // Remove "Bearer " prefix
+            const userProfile = await this.authUseCase.getUserProfileFromAccessToken(token);
+            res.status(200).json({ data: userProfile });
         } catch (error) {
             next(error);
         }

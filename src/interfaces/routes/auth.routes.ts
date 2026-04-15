@@ -36,5 +36,6 @@ authRoutes.post("/reset-password/:token", authController.verifyPasswordResetToke
 // refresh access token
 authRoutes.post("/refresh-token", authController.refreshToken);
 authRoutes.post("/logout", authController.logout);
+authRoutes.get("/me", authController.getCurrentUserProfile);
 
 export default authRoutes;
